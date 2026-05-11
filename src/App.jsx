@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 // ============================================================
 const WHATSAPP_NUMBER = "60137700776";
 const WECHAT_ID = "TrexHomestay";
+// 真实二维码图片（您上传的）
 const WA_QR_URL = "https://i.postimg.cc/LsJwKH9B/Whats-App-QR.jpg";
 const WX_QR_URL = "https://i.postimg.cc/N0KSqgs1/Wechat-QR.jpg";
 
@@ -12,9 +13,11 @@ const WX_QR_URL = "https://i.postimg.cc/N0KSqgs1/Wechat-QR.jpg";
 // 📦 DEFAULT PROPERTIES DATA
 // ============================================================
 const DEFAULT_PROPERTIES = [
+  // 富力公主湾
   { id: 1, project: "RF_PRINCESS", unit: "A-12-03", type: "Studio", name_en: "Cozy Studio · A-12-03", name_zh: "温馨开间 · A-12-03", desc_en: "Modern studio with stunning sea views at R&F Princess Cove. Fully furnished with premium amenities.", desc_zh: "富力公主湾现代开间，享有壮丽海景，配备顶级设施。", price: 180, status: "available", maxGuests: 2, cover: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80", images: ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80","https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80","https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=800&q=80","https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80"], amenities_en: ["WiFi","Air Con","Smart TV","Kitchen","Washer","Sea View"], amenities_zh: ["WiFi","空调","智能电视","厨房","洗衣机","海景"], reviews: [{author:"Li Wei",rating:5,date:"2025-03-10",text_en:"Amazing view, super clean!",text_zh:"景色绝美，非常干净！"},{author:"Ahmad",rating:5,date:"2025-04-01",text_en:"Great location, will return!",text_zh:"位置极佳，会再来！"}] },
   { id: 2, project: "RF_PRINCESS", unit: "B-08-11", type: "2 Bedrooms", name_en: "Seaview Suite · B-08-11", name_zh: "海景套房 · B-08-11", desc_en: "Spacious 2-bedroom with panoramic Strait of Johor views. Perfect for families.", desc_zh: "宽敞两卧室，全景柔佛海峡，适合家庭入住。", price: 320, status: "available", maxGuests: 5, cover: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", images: ["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80","https://images.unsplash.com/photo-1540518614846-7eded433c457?w=800&q=80","https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=800&q=80","https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80"], amenities_en: ["WiFi","Air Con","Smart TV","Full Kitchen","Washer","Sea View","Balcony"], amenities_zh: ["WiFi","空调","智能电视","完整厨房","洗衣机","海景","阳台"], reviews: [{author:"Siti Rahimah",rating:5,date:"2025-02-20",text_en:"Best homestay in JB! Sea view is breathtaking.",text_zh:"新山最佳民宿！海景令人叹为观止。"}] },
   { id: 3, project: "RF_PRINCESS", unit: "C-15-02", type: "3 Bedrooms", name_en: "Luxury Villa · C-15-02", name_zh: "豪华大房 · C-15-02", desc_en: "Premium 3-bedroom unit on high floor with full sea view. Ideal for large families.", desc_zh: "高楼层顶级三卧室，全海景，适合大家庭。", price: 480, status: "available", maxGuests: 8, cover: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80", images: ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80"], amenities_en: ["WiFi","Air Con","Smart TV","Full Kitchen","Washer","Sea View","Balcony","Pool Access","Parking"], amenities_zh: ["WiFi","空调","智能电视","完整厨房","洗衣机","海景","阳台","泳池","停车位"], reviews: [] },
+  // 富力新天地
   { id: 4, project: "RF_SEINE", unit: "S-05-08", type: "Studio", name_en: "Urban Studio · S-05-08", name_zh: "都市开间 · S-05-08", desc_en: "Chic studio in R&F Seine Region, walking distance to malls and restaurants.", desc_zh: "富力新天地时尚开间，步行可达购物中心和餐厅。", price: 160, status: "available", maxGuests: 2, cover: "https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80", images: ["https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80","https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=800&q=80","https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&q=80","https://images.unsplash.com/photo-1554995207-c18c203602cb?w=800&q=80"], amenities_en: ["WiFi","Air Con","Smart TV","Mini Kitchen"], amenities_zh: ["WiFi","空调","智能电视","迷你厨房"], reviews: [{author:"Chen Mei",rating:4,date:"2025-01-15",text_en:"Clean and convenient location.",text_zh:"干净，位置方便。"}] },
   { id: 5, project: "RF_SEINE", unit: "S-10-14", type: "2 Bedrooms", name_en: "City View 2BR · S-10-14", name_zh: "城景双房 · S-10-14", desc_en: "Elegant 2-bedroom in the heart of Johor Bahru. Great city views and connectivity.", desc_zh: "新山市中心优雅两卧室，城市景观，交通便利。", price: 300, status: "booked", maxGuests: 4, cover: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80", images: ["https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80","https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80","https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&q=80","https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&q=80"], amenities_en: ["WiFi","Air Con","Smart TV","Full Kitchen","Washer","City View"], amenities_zh: ["WiFi","空调","智能电视","完整厨房","洗衣机","城景"], reviews: [] },
   { id: 6, project: "RF_SEINE", unit: "S-12-01", type: "3 Bedrooms", name_en: "Family Suite · S-12-01", name_zh: "家庭套间 · S-12-01", desc_en: "Spacious 3-bedroom family suite in R&F Seine Region with modern furnishings.", desc_zh: "富力新天地宽敞三卧室家庭套间，现代装修。", price: 420, status: "available", maxGuests: 8, cover: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80", images: ["https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80","https://images.unsplash.com/photo-1600047508788-786f3865b759?w=800&q=80","https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80"], amenities_en: ["WiFi","Air Con","Smart TV","Full Kitchen","Washer","Balcony","Parking"], amenities_zh: ["WiFi","空调","智能电视","完整厨房","洗衣机","阳台","停车位"], reviews: [] },
@@ -28,19 +31,27 @@ const PROJECTS = {
 const AMENITY_ICONS = { "WiFi":"📶","Air Con":"❄️","Smart TV":"📺","Kitchen":"🍳","Full Kitchen":"🍳","Mini Kitchen":"🍳","Washer":"🫧","Balcony":"🌅","Pool Access":"🏊","Parking":"🅿️","Sea View":"🌊","City View":"🏙️","空调":"❄️","智能电视":"📺","厨房":"🍳","完整厨房":"🍳","迷你厨房":"🍳","洗衣机":"🫧","阳台":"🌅","泳池":"🏊","停车位":"🅿️","海景":"🌊","城景":"🏙️" };
 
 const T = {
-  en: { brand:"T-Rex Homestay", tagline:"Premium Homestays in Johor Bahru", subtitle:"R&F Princess Cove · R&F Seine Region", all_projects:"All Projects", filter_all:"All", filter_studio:"Studio", filter_2br:"2 Bedrooms", filter_3br:"3 Bedrooms", available:"Available", booked:"Booked", per_night:"/ night", max_guests:"Max", back:"← Back", book_now:"Book Now", view_details:"View Details", amenities:"Amenities", booking_title:"Request Booking", checkin:"Check-in", checkout:"Check-out", guestname:"Your Name", phone:"Phone", submit:"Send Booking Request", contact_title:"Complete Your Booking", contact_sub:"We'll confirm within 1 hour via WhatsApp or WeChat.", wa_btn:"Send via WhatsApp", wechat_title:"WeChat", scan_qr:"Scan to add us on WeChat", wechat_id_label:"WeChat ID", summary:"Booking Summary", nights:"nights", total:"Est. Total", fill_all:"Please fill in all fields.", date_err:"Please select valid dates.", footer:"© 2025 T-Rex Homestay. All rights reserved.", reviews:"Guest Reviews", no_reviews:"No reviews yet. Be the first!", leave_review:"Leave a Review", your_name:"Your Name", your_rating:"Rating", your_comment:"Your Review", submit_review:"Post Review", admin:"Admin", admin_title:"Admin Dashboard", add_property:"Add Property", edit:"Edit", delete:"Delete", save:"Save", cancel:"Cancel", upload_imgs:"Upload Images", prop_name_en:"Name (EN)", prop_name_zh:"Name (ZH)", prop_desc_en:"Description (EN)", prop_desc_zh:"Description (ZH)", prop_price:"Price (RM/night)", prop_unit:"Unit No.", prop_type:"Room Type", prop_project:"Project", prop_status:"Status", prop_maxguests:"Max Guests", prop_amenities:"Amenities (comma separated)", logout:"Logout", login:"Admin Login", password:"Password", login_btn:"Login", wrong_pw:"Incorrect password.", units:"units", found:"found" },
-  zh: { brand:"T-Rex 民宿", tagline:"新山精品民宿", subtitle:"富力公主湾 · 富力新天地", all_projects:"全部项目", filter_all:"全部", filter_studio:"开间", filter_2br:"两卧室", filter_3br:"三卧室", available:"可预订", booked:"已订满", per_night:"/ 晚", max_guests:"最多", back:"← 返回", book_now:"立即预订", view_details:"查看详情", amenities:"设施", booking_title:"预订申请", checkin:"入住日期", checkout:"退房日期", guestname:"您的姓名", phone:"联系电话", submit:"发送预订申请", contact_title:"完成预订", contact_sub:"我们将在1小时内通过 WhatsApp 或微信确认。", wa_btn:"通过 WhatsApp 发送", wechat_title:"微信联系", scan_qr:"扫码添加微信", wechat_id_label:"微信号", summary:"预订摘要", nights:"晚", total:"预计总价", fill_all:"请填写所有字段。", date_err:"请选择有效日期。", footer:"© 2025 T-Rex 民宿. 版权所有。", reviews:"客人评价", no_reviews:"暂无评价，欢迎第一个留言！", leave_review:"撰写评价", your_name:"您的姓名", your_rating:"评分", your_comment:"您的评价", submit_review:"提交评价", admin:"管理", admin_title:"后台管理", add_property:"添加房源", edit:"编辑", delete:"删除", save:"保存", cancel:"取消", upload_imgs:"上传图片", prop_name_en:"名称（英文）", prop_name_zh:"名称（中文）", prop_desc_en:"描述（英文）", prop_desc_zh:"描述（中文）", prop_price:"价格（RM/晚）", prop_unit:"单位号", prop_type:"房型", prop_project:"楼盘", prop_status:"状态", prop_maxguests:"最多入住人数", prop_amenities:"设施（逗号分隔）", logout:"退出", login:"后台登录", password:"密码", login_btn:"登录", wrong_pw:"密码错误。", units:"套", found:"个结果" },
+  en: {   brand:"T-Rex Homestay", tagline:"Premium Homestays in Johor Bahru", subtitle:"R&F Princess Cove · R&F Seine Region", all_projects:"All Projects", filter_all:"All", filter_studio:"Studio", filter_2br:"2 Bedrooms", filter_3br:"3 Bedrooms", available:"Available", booked:"Booked", per_night:"/ night", max_guests:"Max", back:"← Back", book_now:"Book Now", view_details:"View Details", amenities:"Amenities", booking_title:"Request Booking", checkin:"Check-in", checkout:"Check-out", guestname:"Your Name", phone:"Phone", submit:"Send Booking Request", contact_title:"Complete Your Booking", contact_sub:"We'll confirm within 1 hour via WhatsApp or WeChat.", wa_btn:"Send via WhatsApp", wechat_title:"WeChat", scan_qr:"Scan to add us on WeChat", wechat_id_label:"WeChat ID", summary:"Booking Summary", nights:"nights", total:"Est. Total", fill_all:"Please fill in all fields.", date_err:"Please select valid dates.",   footer:"© 2025 T-Rex Homestay. All rights reserved.", reviews:"Guest Reviews", no_reviews:"No reviews yet. Be the first!", leave_review:"Leave a Review", your_name:"Your Name", your_rating:"Rating", your_comment:"Your Review", submit_review:"Post Review", admin:"Admin", admin_title:"Admin Dashboard", add_property:"Add Property", edit:"Edit", delete:"Delete", save:"Save", cancel:"Cancel", upload_imgs:"Upload Images", prop_name_en:"Name (EN)", prop_name_zh:"Name (ZH)", prop_desc_en:"Description (EN)", prop_desc_zh:"Description (ZH)", prop_price:"Price (RM/night)", prop_unit:"Unit No.", prop_type:"Room Type", prop_project:"Project", prop_status:"Status", prop_maxguests:"Max Guests", prop_amenities:"Amenities (comma separated)", logout:"Logout", login:"Admin Login", password:"Password", login_btn:"Login", wrong_pw:"Incorrect password.", units:"units", found:"found" },
+  zh: {   brand:"T-Rex 民宿", tagline:"新山精品民宿", subtitle:"富力公主湾 · 富力新天地", all_projects:"全部项目", filter_all:"全部", filter_studio:"开间", filter_2br:"两卧室", filter_3br:"三卧室", available:"可预订", booked:"已订满", per_night:"/ 晚", max_guests:"最多", back:"← 返回", book_now:"立即预订", view_details:"查看详情", amenities:"设施", booking_title:"预订申请", checkin:"入住日期", checkout:"退房日期", guestname:"您的姓名", phone:"联系电话", submit:"发送预订申请", contact_title:"完成预订", contact_sub:"我们将在1小时内通过 WhatsApp 或微信确认。", wa_btn:"通过 WhatsApp 发送", wechat_title:"微信联系", scan_qr:"扫码添加微信", wechat_id_label:"微信号", summary:"预订摘要", nights:"晚", total:"预计总价", fill_all:"请填写所有字段。", date_err:"请选择有效日期。", footer:"© 2025 TREX 民宿. 版权所有。", reviews:"客人评价", no_reviews:"暂无评价，欢迎第一个留言！", leave_review:"撰写评价", your_name:"您的姓名", your_rating:"评分", your_comment:"您的评价", submit_review:"提交评价", admin:"管理", admin_title:"后台管理", add_property:"添加房源", edit:"编辑", delete:"删除", save:"保存", cancel:"取消", upload_imgs:"上传图片", prop_name_en:"名称（英文）", prop_name_zh:"名称（中文）", prop_desc_en:"描述（英文）", prop_desc_zh:"描述（中文）", prop_price:"价格（RM/晚）", prop_unit:"单位号", prop_type:"房型", prop_project:"楼盘", prop_status:"状态", prop_maxguests:"最多入住人数", prop_amenities:"设施（逗号分隔）", logout:"退出", login:"后台登录", password:"密码", login_btn:"登录", wrong_pw:"密码错误。", units:"套", found:"个结果" },
 };
 
 const ADMIN_PW = "trex2025";
 
+// Utility
 const genId = () => Date.now() + Math.random();
 const today = () => new Date().toISOString().split("T")[0];
 const nightsBetween = (a, b) => a && b ? Math.max(0, Math.round((new Date(b)-new Date(a))/86400000)) : 0;
 
+// ============================================================
+// STORAGE (in-memory, persists during session)
+// ============================================================
 let _store = { properties: JSON.parse(JSON.stringify(DEFAULT_PROPERTIES)) };
 const getProps = () => _store.properties;
 const setProps = (p) => { _store.properties = p; };
+
+// ============================================================
+// UI COMPONENTS
+// ============================================================
 
 const Stars = ({ n, size = 16 }) => (
   <span style={{ fontSize: size, lineHeight: 1 }}>
@@ -52,8 +63,8 @@ function Navbar({ lang, setLang, tx, onHome, onAdmin }) {
   return (
     <nav style={{ background: "rgba(255,255,255,0.97)", backdropFilter: "blur(12px)", borderBottom: "1px solid #eee", position: "sticky", top: 0, zIndex: 200 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 58 }}>
-        <button onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 22 }}>🦖</span>
+        <button onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+          <img src="https://i.postimg.cc/W1PBQDtT/logo.jpg" alt="T-Rex Logo" style={{ height: 40, width: 40, objectFit: "contain", borderRadius: 6 }} />
           <span style={{ fontSize: 17, fontWeight: 800, color: "#111", letterSpacing: -0.5 }}>{tx.brand}</span>
         </button>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -76,7 +87,7 @@ function Hero({ tx, lang }) {
     <div style={{ background: "linear-gradient(135deg, #0a1628 0%, #0f2d5a 50%, #1a4a8a 100%)", color: "#fff", textAlign: "center", padding: "56px 20px 48px", position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 20% 80%, rgba(255,255,255,0.03) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 50%)" }} />
       <div style={{ position: "relative" }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🦖</div>
+        <img src="https://i.postimg.cc/W1PBQDtT/logo.jpg" alt="T-Rex" style={{ height: 64, width: 64, objectFit: "contain", marginBottom: 8 }} />
         <h1 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 10px", letterSpacing: -1 }}>{tx.tagline}</h1>
         <p style={{ fontSize: 15, color: "#7eb3e8", margin: "0 0 20px" }}>{tx.subtitle}</p>
         <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
@@ -299,7 +310,7 @@ function BookingPage({ p, lang, tx, onBack }) {
     setErr(""); setStep(2);
   };
 
-  const waMsg = encodeURIComponent(`Hi T-Rex Homestay! I'd like to book:\n🏠 Unit: ${pname} (${p.unit})\n📅 Check-in: ${checkin}\n📅 Check-out: ${checkout} (${nights} nights)\n👤 Name: ${name}\n📞 Phone: ${phone}\n💰 Est. Total: RM ${nights * p.price}\n\nPlease confirm availability. Thank you!`);
+  const waMsg = encodeURIComponent(`Hi TREX Homestay! I'd like to book:\n🏠 Unit: ${pname} (${p.unit})\n📅 Check-in: ${checkin}\n📅 Check-out: ${checkout} (${nights} nights)\n👤 Name: ${name}\n📞 Phone: ${phone}\n💰 Est. Total: RM ${nights * p.price}\n\nPlease confirm availability. Thank you!`);
 
   const inp = { width: "100%", padding: "11px 13px", borderRadius: 10, border: "1.5px solid #e0e0e0", fontSize: 14, boxSizing: "border-box", fontFamily: "inherit", outline: "none" };
 
@@ -336,16 +347,20 @@ function BookingPage({ p, lang, tx, onBack }) {
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 0", borderRadius: 12, background: "#25d366", color: "#fff", fontWeight: 700, fontSize: 16, textDecoration: "none", marginBottom: 18 }}>
             <span style={{ fontSize: 20 }}>💬</span> {tx.wa_btn}
           </a>
+          {/* WhatsApp QR */}
           <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 16, padding: 20, marginBottom: 14 }}>
             <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "#111" }}>📱 WhatsApp QR</p>
             <p style={{ margin: "0 0 12px", fontSize: 12, color: "#888" }}>trexhomeandhouse</p>
-            <img src={WA_QR_URL} alt="WhatsApp QR" style={{ width: 160, height: 160, borderRadius: 10, border: "1px solid #eee", objectFit: "cover", display: "block", margin: "0 auto" }} />
+            <img src={WA_QR_URL} alt="WhatsApp QR"
+              style={{ width: 160, height: 160, borderRadius: 10, border: "1px solid #eee", objectFit: "cover", display: "block", margin: "0 auto" }} />
             <p style={{ margin: "10px 0 0", fontSize: 13, color: "#555" }}>+{WHATSAPP_NUMBER}</p>
           </div>
+          {/* WeChat QR */}
           <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 16, padding: 20 }}>
             <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "#111" }}>🟢 {tx.wechat_title}</p>
             <p style={{ margin: "0 0 12px", fontSize: 12, color: "#888" }}>{tx.scan_qr}</p>
-            <img src={WX_QR_URL} alt="WeChat QR" style={{ width: 160, height: 160, borderRadius: 10, border: "1px solid #eee", objectFit: "cover", display: "block", margin: "0 auto" }} />
+            <img src={WX_QR_URL} alt="WeChat QR"
+              style={{ width: 160, height: 160, borderRadius: 10, border: "1px solid #eee", objectFit: "cover", display: "block", margin: "0 auto" }} />
             <p style={{ margin: "10px 0 0", fontSize: 13, color: "#555" }}>{tx.wechat_id_label}: <strong>{WECHAT_ID}</strong></p>
           </div>
         </div>
@@ -354,14 +369,17 @@ function BookingPage({ p, lang, tx, onBack }) {
   );
 }
 
+// ============================================================
+// ADMIN
+// ============================================================
 function AdminLogin({ tx, onLogin }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   return (
     <div style={{ maxWidth: 360, margin: "80px auto", padding: 32, background: "#fff", borderRadius: 20, boxShadow: "0 4px 32px rgba(0,0,0,0.1)", textAlign: "center" }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>🦖</div>
+        <img src="https://i.postimg.cc/W1PBQDtT/logo.jpg" alt="T-Rex" style={{ height: 28, width: 28, objectFit: "contain", marginRight: 4 }} />
       <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800 }}>{tx.login}</h2>
-      <p style={{ margin: "0 0 24px", color: "#888", fontSize: 13 }}>T-Rex Admin</p>
+      <p style={{ margin: "0 0 24px", color: "#888", fontSize: 13 }}>TREX Admin</p>
       <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && (pw === ADMIN_PW ? onLogin() : setErr(tx.wrong_pw))}
         placeholder={tx.password} style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1.5px solid #e0e0e0", fontSize: 14, boxSizing: "border-box", marginBottom: 10 }} />
       {err && <p style={{ color: "#ef4444", fontSize: 13, marginBottom: 8 }}>{err}</p>}
@@ -437,6 +455,7 @@ function AdminPanel({ tx, lang, properties, onUpdate, onLogout }) {
           <div style={{gridColumn:"span 2"}}><label style={lbl}>{tx.prop_amenities} (EN)</label><input value={form.amenities_en_str} onChange={e=>setForm(f=>({...f,amenities_en_str:e.target.value}))} style={inp} placeholder="WiFi, Air Con, Sea View" /></div>
           <div style={{gridColumn:"span 2"}}><label style={lbl}>{tx.prop_amenities} (ZH)</label><input value={form.amenities_zh_str} onChange={e=>setForm(f=>({...f,amenities_zh_str:e.target.value}))} style={inp} placeholder="WiFi, 空调, 海景" /></div>
         </div>
+        {/* Image Upload */}
         <div style={{ marginTop: 16 }}>
           <label style={lbl}>🖼️ {tx.upload_imgs}</label>
           <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImgUpload} style={{ display: "none" }} />
@@ -452,6 +471,7 @@ function AdminPanel({ tx, lang, properties, onUpdate, onLogout }) {
               ))}
             </div>
           )}
+          {/* URL fallback */}
           <div style={{ marginTop: 10 }}>
             <label style={{ ...lbl, fontWeight: 500 }}>Or cover URL:</label>
             <input value={form.cover} onChange={e=>setForm(f=>({...f,cover:e.target.value}))} style={inp} placeholder="https://..." />
@@ -469,7 +489,7 @@ function AdminPanel({ tx, lang, properties, onUpdate, onLogout }) {
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 48px" }}>
-      {(editId || adding) && <FormModal />}
+      {(editId || adding) && <AdminFormModal tx={tx} lang={lang} adding={adding} form={form} setForm={setForm} onSave={save} onCancel={cancel} onImgUpload={handleImgUpload} onRemoveImg={removeImg} />}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>⚙️ {tx.admin_title}</h2>
         <div style={{ display: "flex", gap: 10 }}>
@@ -481,7 +501,7 @@ function AdminPanel({ tx, lang, properties, onUpdate, onLogout }) {
         <div key={proj} style={{ marginBottom: 32 }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 700, color: "#0f2d5a", display: "flex", alignItems: "center", gap: 8 }}>
             {PROJECTS[proj].icon} {lang === "zh" ? PROJECTS[proj].zh : PROJECTS[proj].en}
-            <span style={{ background: "#e8f0fe", color: "#0f2d5a", borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>{props.length} 套</span>
+            <span style={{ background: "#e8f0fe", color: "#0f2d5a", borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>{props.length} / {PROJECTS[proj].total}</span>
           </h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
             {props.map(p => (
@@ -507,6 +527,9 @@ function AdminPanel({ tx, lang, properties, onUpdate, onLogout }) {
   );
 }
 
+// ============================================================
+// MAIN APP
+// ============================================================
 export default function App() {
   const [lang, setLang] = useState("zh");
   const [project, setProject] = useState("ALL");
@@ -546,6 +569,7 @@ export default function App() {
       <Navbar lang={lang} setLang={setLang} tx={tx}
         onHome={() => nav("home")}
         onAdmin={() => { if (isAdmin) nav("admin"); else setShowLogin(true); }} />
+
       {page === "home" && <>
         <Hero tx={tx} lang={lang} />
         <FilterBar project={project} setProject={setProject} filter={filter} setFilter={setFilter} tx={tx} lang={lang} count={filtered.length} />
@@ -556,11 +580,13 @@ export default function App() {
           {filtered.length === 0 && <p style={{ textAlign: "center", color: "#aaa", padding: "60px 0" }}>No properties found.</p>}
         </div>
       </>}
+
       {page === "detail" && selected && <DetailPage p={properties.find(p=>p.id===selected.id)||selected} lang={lang} tx={tx} onBook={p => nav("booking", p)} onBack={() => nav("home")} onAddReview={addReview} />}
       {page === "booking" && selected && <BookingPage p={selected} lang={lang} tx={tx} onBack={() => nav("detail", selected)} />}
       {page === "admin" && isAdmin && <AdminPanel tx={tx} lang={lang} properties={properties} onUpdate={updateProperties} onLogout={() => { setIsAdmin(false); setPage("home"); }} />}
+
       <footer style={{ background: "#0a1628", color: "#556", textAlign: "center", padding: "22px 20px", fontSize: 12 }}>
-        <span style={{ color: "#7eb3e8", fontWeight: 700 }}>🦖 {tx.brand}</span> &nbsp;·&nbsp; {tx.footer}
+        <img src="https://i.postimg.cc/W1PBQDtT/logo.jpg" alt="T-Rex" style={{ height: 20, width: 20, objectFit: "contain", verticalAlign: "middle" }} /> &nbsp;·&nbsp; {tx.footer}
       </footer>
     </div>
   );
