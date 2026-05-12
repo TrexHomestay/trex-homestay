@@ -1,9 +1,27 @@
 import { useState, useEffect, useRef } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
-const STORAGE_KEY = "trex_v3";
-const save = (p) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {} };
-const load = () => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : null; } catch { return null; } };
+// ── Firebase ───────────────────────────────────────────────
+const firebaseApp = initializeApp({
+  apiKey: "AIzaSyA-ZKs5svNygZga3rNoLJ7k6q9JpdXjH3I",
+  authDomain: "trex-homestay.firebaseapp.com",
+  projectId: "trex-homestay",
+  storageBucket: "trex-homestay.firebasestorage.app",
+  messagingSenderId: "162512186134",
+  appId: "1:162512186134:web:ca52ac4a2f8db49da43e37"
+});
+const db = getFirestore(firebaseApp);
+const saveToCloud = async (properties) => {
+  try { await setDoc(doc(db,"data","properties"), { list: properties }); }
+  catch(e) { console.error("Save error:",e); alert("保存失败，请重试。"); }
+};
+const loadFromCloud = async () => {
+  try { const s = await getDoc(doc(db,"data","properties")); return s.exists() ? s.data().list : null; }
+  catch(e) { console.error("Load error:",e); return null; }
+};
 
+// ── Cloudinary ─────────────────────────────────────────────
 const CLOUDINARY_CLOUD = "dij7dlx83";
 const CLOUDINARY_PRESET = "trex_upload";
 const uploadImage = async (file) => {
@@ -15,6 +33,7 @@ const uploadImage = async (file) => {
   return d.secure_url;
 };
 
+// ── 联系方式 ───────────────────────────────────────────────
 const WHATSAPP_NUMBER = "60137700776";
 const WECHAT_ID = "TrexHomestay";
 const WA_QR = "https://i.postimg.cc/LsJwKH9B/Whats-App-QR.jpg";
@@ -45,8 +64,7 @@ const T = {
 
 const genId = () => Date.now() + Math.random();
 const today = () => new Date().toISOString().split("T")[0];
-const nights = (a,b) => a&&b ? Math.max(0,Math.round((new Date(b)-new Date(a))/86400000)) : 0;
-
+const calcNights = (a,b) => a&&b ? Math.max(0,Math.round((new Date(b)-new Date(a))/86400000)) : 0;
 const Stars = ({n,size=16}) => <span style={{fontSize:size}}>{[1,2,3,4,5].map(i=><span key={i} style={{color:i<=n?"#f59e0b":"#ddd"}}>★</span>)}</span>;
 
 function DisclaimerModal({lang,onClose}) {
@@ -59,10 +77,10 @@ function DisclaimerModal({lang,onClose}) {
     ["知识产权","网站上的所有图片、文字、设计元素未经书面许可，不得复制、转载或用于商业用途。"],
     ["更新与变更","我们保留随时修改本免责声明及网站内容的权利，恕不另行通知。您继续使用本网站即视为同意当时的免责条款。"],
   ] : [
-    ["Booking Confirmation","Any booking request submitted through this website is only an expression of interest. An order is only considered confirmed once our staff explicitly confirms the unit's availability, dates, and acceptance via WhatsApp, WeChat, or another official channel. Until you receive our written confirmation, no booking is deemed successful."],
-    ["Accuracy of Information","While we strive to ensure descriptions and photos match reality, slight differences may arise due to lighting or furniture adjustments. All content should not be interpreted as an absolute guarantee."],
-    ["Limitation of Liability","To the fullest extent permitted by law, we shall not be held liable for any failure caused by force majeure, government policies, public health emergencies, or third-party service interruptions."],
-    ["Third-Party Links","The website may contain links to external platforms (e.g., WhatsApp, WeChat). Their availability and privacy practices are beyond our control."],
+    ["Booking Confirmation","Any booking request submitted through this website is only an expression of interest. An order is only considered confirmed once our staff explicitly confirms via WhatsApp, WeChat, or another official channel. Until you receive our written confirmation, no booking is deemed successful."],
+    ["Accuracy of Information","While we strive to ensure descriptions and photos match reality, slight differences may arise. All content should not be interpreted as an absolute guarantee."],
+    ["Limitation of Liability","To the fullest extent permitted by law, we shall not be held liable for any failure caused by force majeure or third-party service interruptions."],
+    ["Third-Party Links","The website may contain links to external platforms. Their availability and privacy practices are beyond our control."],
     ["Intellectual Property","All images, text, and design elements may not be copied or used commercially without written permission."],
     ["Changes","We reserve the right to modify this disclaimer at any time without prior notice."],
   ];
@@ -74,20 +92,14 @@ function DisclaimerModal({lang,onClose}) {
           <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",width:32,height:32,borderRadius:"50%",fontSize:18,cursor:"pointer"}}>×</button>
         </div>
         <div style={{padding:"24px 28px"}}>
-          <p style={{fontSize:14,lineHeight:1.8,color:"#444",marginTop:0}}>
-            {zh ? "本网站所展示的所有房源信息仅供展示与参考之用，不构成任何即时预订确认或合同承诺。网站未实时关联房源空置状态，具体房源的可用性、价格及最终预订结果，必须通过我们工作人员的人工确认为准。"
-                : "All property listings displayed on this website are for display and informational purposes only and do not constitute a real-time booking confirmation or contractual offer. Actual availability and final confirmation are subject to manual confirmation by our team."}
-          </p>
+          <p style={{fontSize:14,lineHeight:1.8,color:"#444",marginTop:0}}>{zh?"本网站所展示的所有房源信息仅供展示与参考之用，不构成任何即时预订确认或合同承诺。网站未实时关联房源空置状态，具体房源的可用性、价格及最终预订结果，必须通过我们工作人员的人工确认为准。":"All property listings displayed on this website are for display and informational purposes only and do not constitute a real-time booking confirmation. Actual availability and final confirmation are subject to manual confirmation by our team."}</p>
           {sections.map(([t,c])=>(
             <div key={t} style={{marginBottom:16}}>
               <h4 style={{margin:"0 0 6px",fontSize:14,fontWeight:700,color:"#0f2d5a"}}>{t}</h4>
               <p style={{margin:0,fontSize:13,lineHeight:1.8,color:"#555"}}>{c}</p>
             </div>
           ))}
-          <p style={{fontSize:13,color:"#888",marginTop:20,borderTop:"1px solid #eee",paddingTop:16}}>
-            {zh ? <>如有疑问，请通过 WhatsApp <strong>+6013-7700776</strong> 或微信联系我们。</>
-                : <>Questions? Contact us via WhatsApp <strong>+6013-7700776</strong> or WeChat.</>}
-          </p>
+          <p style={{fontSize:13,color:"#888",marginTop:20,borderTop:"1px solid #eee",paddingTop:16}}>{zh?<>如有疑问，请通过 WhatsApp <strong>+6013-7700776</strong> 或微信联系我们。</>:<>Questions? Contact us via WhatsApp <strong>+6013-7700776</strong> or WeChat.</>}</p>
         </div>
       </div>
     </div>
@@ -103,9 +115,7 @@ function Navbar({lang,setLang,tx,onHome,onAdmin}) {
           <span style={{fontSize:17,fontWeight:800,color:"#111"}}>{tx.brand}</span>
         </button>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {["en","zh"].map(l=>(
-            <button key={l} onClick={()=>setLang(l)} style={{padding:"5px 13px",borderRadius:20,border:"1.5px solid",fontSize:12,fontWeight:700,cursor:"pointer",borderColor:lang===l?"#111":"#ddd",background:lang===l?"#111":"#fff",color:lang===l?"#fff":"#666"}}>{l==="en"?"EN":"中文"}</button>
-          ))}
+          {["en","zh"].map(l=><button key={l} onClick={()=>setLang(l)} style={{padding:"5px 13px",borderRadius:20,border:"1.5px solid",fontSize:12,fontWeight:700,cursor:"pointer",borderColor:lang===l?"#111":"#ddd",background:lang===l?"#111":"#fff",color:lang===l?"#fff":"#666"}}>{l==="en"?"EN":"中文"}</button>)}
           <button onClick={onAdmin} style={{padding:"5px 13px",borderRadius:20,border:"1.5px solid #e0e0e0",fontSize:12,fontWeight:600,cursor:"pointer",background:"#fff",color:"#888"}}>⚙️ {tx.admin}</button>
         </div>
       </div>
@@ -133,9 +143,7 @@ function Hero({tx,lang}) {
 function FilterBar({project,setProject,filter,setFilter,tx,lang,count}) {
   const projs=[{key:"ALL",en:tx.all_projects,zh:tx.all_projects},...Object.entries(PROJECTS).map(([k,v])=>({key:k,en:v.en,zh:v.zh}))];
   const types=[["All",tx.filter_all],["Studio",tx.filter_studio],["1 Bedroom",tx.filter_1br],["2 Bedrooms",tx.filter_2br],["3 Bedrooms",tx.filter_3br]];
-  const btn=(active,fn,label,sm)=>(
-    <button onClick={fn} style={{padding:sm?"6px 14px":"7px 18px",borderRadius:24,border:"1.5px solid",fontSize:sm?12:13,fontWeight:600,cursor:"pointer",borderColor:active?"#0f2d5a":"#e0e0e0",background:active?"#0f2d5a":"#fff",color:active?"#fff":"#555"}}>{label}</button>
-  );
+  const btn=(active,fn,label,sm)=><button onClick={fn} style={{padding:sm?"6px 14px":"7px 18px",borderRadius:24,border:"1.5px solid",fontSize:sm?12:13,fontWeight:600,cursor:"pointer",borderColor:active?"#0f2d5a":"#e0e0e0",background:active?"#0f2d5a":"#fff",color:active?"#fff":"#555"}}>{label}</button>;
   return (
     <div style={{background:"#fff",borderBottom:"1px solid #f0f0f0",padding:"16px 20px",position:"sticky",top:58,zIndex:100}}>
       <div style={{maxWidth:1200,margin:"0 auto"}}>
@@ -198,10 +206,8 @@ function Carousel({images}) {
 
 function ReviewSection({p,lang,tx,onAdd}) {
   const [show,setShow]=useState(false);
-  const [name,setName]=useState("");
-  const [rating,setRating]=useState(5);
-  const [comment,setComment]=useState("");
-  const [hover,setHover]=useState(0);
+  const [name,setName]=useState(""); const [rating,setRating]=useState(5);
+  const [comment,setComment]=useState(""); const [hover,setHover]=useState(0);
   const submit=()=>{
     if(!name.trim()||!comment.trim()) return;
     onAdd(p.id,{author:name,rating,date:today(),text_en:comment,text_zh:comment});
@@ -216,9 +222,7 @@ function ReviewSection({p,lang,tx,onAdd}) {
       {show&&(
         <div style={{background:"#f8faff",borderRadius:14,padding:20,marginBottom:20,border:"1px solid #e0e8f8"}}>
           <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:600,display:"block",marginBottom:5}}>{tx.your_name}</label><input value={name} onChange={e=>setName(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1.5px solid #ddd",fontSize:14,boxSizing:"border-box"}}/></div>
-          <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:600,display:"block",marginBottom:5}}>{tx.your_rating}</label>
-            <div style={{display:"flex",gap:4}}>{[1,2,3,4,5].map(i=><span key={i} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(0)} onClick={()=>setRating(i)} style={{fontSize:28,cursor:"pointer",color:i<=(hover||rating)?"#f59e0b":"#ddd"}}>★</span>)}</div>
-          </div>
+          <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:600,display:"block",marginBottom:5}}>{tx.your_rating}</label><div style={{display:"flex",gap:4}}>{[1,2,3,4,5].map(i=><span key={i} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(0)} onClick={()=>setRating(i)} style={{fontSize:28,cursor:"pointer",color:i<=(hover||rating)?"#f59e0b":"#ddd"}}>★</span>)}</div></div>
           <div style={{marginBottom:14}}><label style={{fontSize:13,fontWeight:600,display:"block",marginBottom:5}}>{tx.your_comment}</label><textarea value={comment} onChange={e=>setComment(e.target.value)} rows={3} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1.5px solid #ddd",fontSize:14,resize:"vertical",boxSizing:"border-box",fontFamily:"inherit"}}/></div>
           <button onClick={submit} style={{padding:"9px 24px",borderRadius:10,border:"none",background:"#0f2d5a",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>{tx.submit_review}</button>
         </div>
@@ -280,7 +284,7 @@ function BookingPage({p,lang,tx,onBack}) {
   const [name,setName]=useState(""); const [phone,setPhone]=useState("");
   const [step,setStep]=useState(1); const [err,setErr]=useState("");
   const pname=lang==="zh"?p.name_zh:p.name_en;
-  const n=nights(ci,co);
+  const n=calcNights(ci,co);
   const submit=()=>{
     if(!name.trim()||!phone.trim()){setErr(tx.fill_all);return;}
     if(!ci||!co||n<=0){setErr(tx.date_err);return;}
@@ -314,18 +318,16 @@ function BookingPage({p,lang,tx,onBack}) {
             <p style={{margin:"0 0 6px",fontWeight:700,fontSize:13,color:"#15803d"}}>{tx.summary}</p>
             {[`🏠 ${pname} (${p.unit})`,`📅 ${ci} → ${co} (${n} ${tx.nights})`,`👤 ${name} · ${phone}`,`💰 ${tx.total}: RM ${n*p.price}`].map((l,i)=><p key={i} style={{margin:"2px 0",fontSize:13,color:"#444"}}>{l}</p>)}
           </div>
-          <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"14px 0",borderRadius:12,background:"#25d366",color:"#fff",fontWeight:700,fontSize:16,textDecoration:"none",marginBottom:18}}>
-            💬 {tx.wa_btn}
-          </a>
+          <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"14px 0",borderRadius:12,background:"#25d366",color:"#fff",fontWeight:700,fontSize:16,textDecoration:"none",marginBottom:18}}>💬 {tx.wa_btn}</a>
           <div style={{background:"#fff",border:"1px solid #eee",borderRadius:16,padding:20,marginBottom:14}}>
             <p style={{margin:"0 0 4px",fontWeight:700,fontSize:14}}>📱 WhatsApp QR</p>
-            <img src={WA_QR} alt="WA QR" style={{width:160,height:160,borderRadius:10,objectFit:"cover",display:"block",margin:"8px auto"}}/>
+            <img src={WA_QR} alt="WA" style={{width:160,height:160,borderRadius:10,objectFit:"cover",display:"block",margin:"8px auto"}}/>
             <p style={{margin:"8px 0 0",fontSize:13,color:"#555"}}>+{WHATSAPP_NUMBER}</p>
           </div>
           <div style={{background:"#fff",border:"1px solid #eee",borderRadius:16,padding:20}}>
             <p style={{margin:"0 0 4px",fontWeight:700,fontSize:14}}>🟢 {tx.wechat_title}</p>
             <p style={{margin:"0 0 8px",fontSize:12,color:"#888"}}>{tx.scan_qr}</p>
-            <img src={WX_QR} alt="WX QR" style={{width:160,height:160,borderRadius:10,objectFit:"cover",display:"block",margin:"0 auto"}}/>
+            <img src={WX_QR} alt="WX" style={{width:160,height:160,borderRadius:10,objectFit:"cover",display:"block",margin:"0 auto"}}/>
             <p style={{margin:"8px 0 0",fontSize:13,color:"#555"}}>{tx.wechat_id_label}: <strong>{WECHAT_ID}</strong></p>
           </div>
         </div>
@@ -350,10 +352,9 @@ function AdminLogin({tx,onLogin}) {
 
 function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
   const [editId,setEditId]=useState(null); const [adding,setAdding]=useState(false);
-  const fileRef=useRef();
+  const fileRef=useRef(); const [uploading,setUploading]=useState(false);
   const blank={id:genId(),project:"RF_PRINCESS",unit:"",type:"Studio",name_en:"",name_zh:"",desc_en:"",desc_zh:"",price:200,status:"available",maxGuests:2,cover:"",images:[],amenities_en:[],amenities_zh:[],reviews:[]};
   const [form,setForm]=useState({...blank,amenities_en_str:"",amenities_zh_str:""});
-  const [uploading,setUploading]=useState(false);
   const startEdit=p=>{setForm({...p,images:p.images||[],amenities_en:p.amenities_en||[],amenities_zh:p.amenities_zh||[],amenities_en_str:(p.amenities_en||[]).join(", "),amenities_zh_str:(p.amenities_zh||[]).join(", ")});setEditId(p.id);setAdding(false);};
   const startAdd=()=>{setForm({...blank,id:genId(),amenities_en_str:"",amenities_zh_str:""});setAdding(true);setEditId(null);};
   const cancel=()=>{setEditId(null);setAdding(false);};
@@ -366,11 +367,10 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
   };
   const del=id=>{if(window.confirm("Delete?")) onUpdate(properties.filter(p=>p.id!==id));};
   const handleImgUpload=async e=>{
-    const files=Array.from(e.target.files);
     setUploading(true);
-    for(const f of files){
+    for(const f of Array.from(e.target.files)){
       try{ const url=await uploadImage(f); setForm(prev=>({...prev,images:[...(prev.images||[]),url],cover:prev.cover||url})); }
-      catch{ alert("Upload failed, please retry"); }
+      catch{ alert("Upload failed"); }
     }
     setUploading(false);
   };
@@ -401,9 +401,7 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
             <div style={{marginTop:16}}>
               <label style={lbl}>🖼️ {tx.upload_imgs}</label>
               <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImgUpload} style={{display:"none"}}/>
-              <button onClick={()=>fileRef.current.click()} disabled={uploading} style={{padding:"8px 18px",borderRadius:8,border:"1.5px dashed #0f2d5a",background:uploading?"#e0e7ff":"#f0f4ff",color:"#0f2d5a",fontWeight:600,fontSize:13,cursor:uploading?"wait":"pointer"}}>
-                {uploading?"⏳ 上传中...":"+ 上传图片"}
-              </button>
+              <button onClick={()=>fileRef.current.click()} disabled={uploading} style={{padding:"8px 18px",borderRadius:8,border:"1.5px dashed #0f2d5a",background:uploading?"#e0e7ff":"#f0f4ff",color:"#0f2d5a",fontWeight:600,fontSize:13,cursor:uploading?"wait":"pointer"}}>{uploading?"⏳ 上传中...":"+ 上传图片"}</button>
               <span style={{fontSize:11,color:"#aaa",marginLeft:10}}>支持多张，自动上传云端</span>
               {form.images?.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:10}}>{form.images.map((img,i)=><div key={i} style={{position:"relative"}}><img src={img} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:i===0?"2.5px solid #0f2d5a":"1px solid #ddd"}}/>{i===0&&<span style={{position:"absolute",bottom:2,left:2,background:"#0f2d5a",color:"#fff",fontSize:9,borderRadius:4,padding:"1px 4px"}}>封面</span>}<button onClick={()=>removeImg(i)} style={{position:"absolute",top:-6,right:-6,background:"#ef4444",color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:11,cursor:"pointer",lineHeight:1}}>×</button></div>)}</div>}
             </div>
@@ -465,20 +463,18 @@ export default function App() {
   const [showDisclaimer,setShowDisclaimer]=useState(false);
   const tx=T[lang];
 
-  useEffect(()=>{ const d=load(); if(d) setProperties(d); setLoading(false); },[]);
+  useEffect(()=>{ loadFromCloud().then(d=>{ if(d) setProperties(d); setLoading(false); }); },[]);
 
-  const updateProperties=async p=>{ setProperties([...p]); setSaving(true); save(p); setSaving(false); };
-
+  const updateProperties=async p=>{ setProperties([...p]); setSaving(true); await saveToCloud(p); setSaving(false); };
   const addReview=(pid,review)=>{
     const updated=properties.map(p=>p.id===pid?{...p,reviews:[...(p.reviews||[]),review]}:p);
     updateProperties(updated);
     if(selected?.id===pid) setSelected(updated.find(p=>p.id===pid));
   };
-
   const filtered=properties.filter(p=>(project==="ALL"||p.project===project)&&(filter==="All"||p.type===filter));
   const nav=(pg,prop=null)=>{setPage(pg);if(prop)setSelected(prop);window.scrollTo(0,0);};
 
-  if(loading) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f8fafc"}}><img src={LOGO} style={{height:80,width:80,objectFit:"contain",borderRadius:10}}/><p style={{color:"#888"}}>{T[lang].loading}</p></div>;
+  if(loading) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f8fafc",fontFamily:"'Segoe UI',system-ui,sans-serif"}}><img src={LOGO} style={{height:80,width:80,objectFit:"contain",borderRadius:10}}/><p style={{color:"#888"}}>{T[lang].loading}</p></div>;
 
   if(showLogin&&!isAdmin) return (
     <div style={{minHeight:"100vh",background:"#f8fafc",fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
@@ -507,9 +503,7 @@ export default function App() {
         <img src={LOGO} alt="" style={{height:20,width:20,objectFit:"contain",verticalAlign:"middle",marginRight:6,borderRadius:3}}/>
         <span style={{color:"#7eb3e8",fontWeight:700}}>{tx.brand}</span> &nbsp;·&nbsp; {tx.footer}
         &nbsp;·&nbsp;
-        <button onClick={()=>setShowDisclaimer(true)} style={{background:"none",border:"none",color:"#7eb3e8",fontSize:12,cursor:"pointer",textDecoration:"underline",padding:0}}>
-          {lang==="zh"?"免责声明":"Disclaimer"}
-        </button>
+        <button onClick={()=>setShowDisclaimer(true)} style={{background:"none",border:"none",color:"#7eb3e8",fontSize:12,cursor:"pointer",textDecoration:"underline",padding:0}}>{lang==="zh"?"免责声明":"Disclaimer"}</button>
       </footer>
       {showDisclaimer&&<DisclaimerModal lang={lang} onClose={()=>setShowDisclaimer(false)}/>}
     </div>
