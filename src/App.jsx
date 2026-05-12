@@ -1,8 +1,52 @@
 import { useState, useEffect, useRef } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
-const STORAGE_KEY = "trex_v4";
-const save = (p) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {} };
-const load = () => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : null; } catch { return null; } };
+const firebaseApp = initializeApp({
+  apiKey: "AIzaSyA-ZKs5svNygZga3rNoLJ7k6q9JpdXjH3I",
+  authDomain: "trex-homestay.firebaseapp.com",
+  projectId: "trex-homestay",
+  storageBucket: "trex-homestay.firebasestorage.app",
+  messagingSenderId: "162512186134",
+  appId: "1:162512186134:web:ca52ac4a2f8db49da43e37"
+});
+const db = getFirestore(firebaseApp);
+const saveToCloud = async (properties) => {
+  try {
+    await setDoc(doc(db,"data","properties"), { list: properties, updatedAt: Date.now() });
+    console.log("✅ Saved", properties.length, "properties to Firebase");
+    return true;
+  } catch(e) {
+    console.error("❌ Save error:",e);
+    alert("保存失败：" + e.message);
+    return false;
+  }
+};
+
+// 迁移旧数据：price → priceWeekday + priceWeekend
+const migrateProperty = (p) => {
+  if (p.priceWeekday === undefined) {
+    const base = p.price || 200;
+    return { ...p, priceWeekday: base, priceWeekend: Math.round(base * 1.2) };
+  }
+  return p;
+};
+
+const loadFromCloud = async () => {
+  try {
+    const s = await getDoc(doc(db,"data","properties"));
+    if (s.exists()) {
+      const list = s.data().list;
+      console.log("✅ Loaded", list.length, "properties from Firebase");
+      return list.map(migrateProperty);
+    }
+    console.log("⚠️ No data in Firebase, using defaults");
+    return null;
+  } catch(e) {
+    console.error("❌ Load error:",e);
+    return null;
+  }
+};
 
 const CLOUDINARY_CLOUD = "dij7dlx83";
 const CLOUDINARY_PRESET = "trex_upload";
@@ -29,65 +73,53 @@ const PROJECTS = {
 
 const AMI = { "WiFi":"📶","Air Con":"❄️","Smart TV":"📺","Kitchen":"🍳","Full Kitchen":"🍳","Mini Kitchen":"🍳","Washer":"🫧","Balcony":"🌅","Pool Access":"🏊","Parking":"🅿️","Sea View":"🌊","City View":"🏙️","空调":"❄️","智能电视":"📺","厨房":"🍳","完整厨房":"🍳","迷你厨房":"🍳","洗衣机":"🫧","阳台":"🌅","泳池":"🏊","停车位":"🅿️","海景":"🌊","城景":"🏙️" };
 
-// 判断是否为周末（周五、周六、周日）
-const isWeekend = (dateStr) => {
-  const day = new Date(dateStr).getDay(); // 0=Sun,1=Mon,...,5=Fri,6=Sat
-  return day === 0 || day === 5 || day === 6;
-};
-
-// 计算总价（逐晚判断平日/周末）
-const calcTotal = (checkin, checkout, priceWeekday, priceWeekend) => {
-  if (!checkin || !checkout) return { total: 0, weekdayNights: 0, weekendNights: 0 };
-  const start = new Date(checkin);
-  const end = new Date(checkout);
-  const days = Math.round((end - start) / 86400000);
-  if (days <= 0) return { total: 0, weekdayNights: 0, weekendNights: 0 };
-  let total = 0, weekendNights = 0, weekdayNights = 0;
-  for (let i = 0; i < days; i++) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().split("T")[0];
-    if (isWeekend(dateStr)) { total += Number(priceWeekend); weekendNights++; }
-    else { total += Number(priceWeekday); weekdayNights++; }
-  }
-  return { total, weekdayNights, weekendNights };
-};
+const ROOM_TYPES = ["Studio","1 Bedroom","2 Bedrooms","3 Bedrooms","Dual Key"];
 
 const DEFAULT_PROPS = [
-  { id:1, project:"RF_PRINCESS", unit:"A-12-03", type:"Studio", name_en:"Cozy Studio · A-12-03", name_zh:"温馨开间 · A-12-03", desc_en:"Modern studio with stunning sea views at R&F Princess Cove.", desc_zh:"富力公主湾现代开间，享有壮丽海景。", priceWeekday:180, priceWeekend:220, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80", images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80","https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Kitchen","Sea View"], amenities_zh:["WiFi","空调","智能电视","厨房","海景"], reviews:[{author:"Li Wei",rating:5,date:"2025-03-10",text_en:"Amazing view!",text_zh:"景色绝美！"}] },
+  { id:1, project:"RF_PRINCESS", unit:"A-12-03", type:"Studio", name_en:"Cozy Studio · A-12-03", name_zh:"温馨开间 · A-12-03", desc_en:"Modern studio with stunning sea views at R&F Princess Cove.", desc_zh:"富力公主湾现代开间，享有壮丽海景。", priceWeekday:180, priceWeekend:220, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80", images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Kitchen","Sea View"], amenities_zh:["WiFi","空调","智能电视","厨房","海景"], reviews:[] },
   { id:2, project:"RF_PRINCESS", unit:"B-08-11", type:"2 Bedrooms", name_en:"Seaview Suite · B-08-11", name_zh:"海景套房 · B-08-11", desc_en:"Spacious 2-bedroom with panoramic sea views.", desc_zh:"宽敞两卧室，全景柔佛海峡。", priceWeekday:320, priceWeekend:380, status:"available", maxGuests:5, cover:"https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", images:["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","Sea View","Balcony"], amenities_zh:["WiFi","空调","完整厨房","海景","阳台"], reviews:[] },
-  { id:3, project:"RF_PRINCESS", unit:"C-15-02", type:"Dual Key", name_en:"Dual Key · C-15-02", name_zh:"双钥匙 · C-15-02", desc_en:"Unique dual key unit — two separate spaces in one. Perfect for families needing privacy.", desc_zh:"独特双钥匙单位，两个独立空间合一，适合需要隐私的家庭。", priceWeekday:420, priceWeekend:500, status:"available", maxGuests:6, cover:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80", images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","Sea View","Balcony","Parking"], amenities_zh:["WiFi","空调","完整厨房","海景","阳台","停车位"], reviews:[] },
-  { id:4, project:"RF_SEINE", unit:"S-05-08", type:"Studio", name_en:"Urban Studio · S-05-08", name_zh:"都市开间 · S-05-08", desc_en:"Chic studio in R&F Seine Region.", desc_zh:"富力新天地时尚开间。", priceWeekday:160, priceWeekend:200, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80", images:["https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Mini Kitchen"], amenities_zh:["WiFi","空调","智能电视","迷你厨房"], reviews:[] },
-  { id:5, project:"RF_SEINE", unit:"S-10-14", type:"2 Bedrooms", name_en:"City View 2BR · S-10-14", name_zh:"城景双房 · S-10-14", desc_en:"Elegant 2-bedroom in Johor Bahru city centre.", desc_zh:"新山市中心优雅两卧室。", priceWeekday:300, priceWeekend:360, status:"booked", maxGuests:4, cover:"https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80", images:["https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","City View"], amenities_zh:["WiFi","空调","完整厨房","城景"], reviews:[] },
-  { id:6, project:"RF_SEINE", unit:"S-12-01", type:"3 Bedrooms", name_en:"Family Suite · S-12-01", name_zh:"家庭套间 · S-12-01", desc_en:"Spacious 3-bedroom family suite.", desc_zh:"宽敞三卧室家庭套间。", priceWeekday:420, priceWeekend:500, status:"available", maxGuests:8, cover:"https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80", images:["https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","Balcony","Parking"], amenities_zh:["WiFi","空调","完整厨房","阳台","停车位"], reviews:[] },
+  { id:3, project:"RF_SEINE", unit:"S-05-08", type:"Studio", name_en:"Urban Studio · S-05-08", name_zh:"都市开间 · S-05-08", desc_en:"Chic studio in R&F Seine Region.", desc_zh:"富力新天地时尚开间。", priceWeekday:160, priceWeekend:200, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80", images:["https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Mini Kitchen"], amenities_zh:["WiFi","空调","智能电视","迷你厨房"], reviews:[] },
 ];
 
 const T = {
-  en:{ brand:"T-Rex Homestay", tagline:"R&F Homestay @ T-Rex", subtitle:"R&F Princess Cove · R&F Seine Region", all_projects:"All Projects", filter_all:"All", filter_studio:"Studio", filter_1br:"1 Bedroom", filter_2br:"2 Bedrooms", filter_3br:"3 Bedrooms", filter_dk:"Dual Key", available:"Available", booked:"Booked", per_night:"/ night", weekday:"Weekday", weekend:"Weekend", max_guests:"Max", back:"← Back", book_now:"Book Now", view_details:"View Details", amenities:"Amenities", booking_title:"Request Booking", checkin:"Check-in", checkout:"Check-out", guestname:"Your Name", phone:"Phone", submit:"Send Booking Request", contact_title:"Complete Your Booking", contact_sub:"We'll confirm within 1 hour via WhatsApp or WeChat.", wa_btn:"Send via WhatsApp", wechat_title:"WeChat", scan_qr:"Scan to add us on WeChat", wechat_id_label:"WeChat ID", summary:"Booking Summary", nights:"nights", weekday_nights:"weekday nights", weekend_nights:"weekend nights", total:"Est. Total", fill_all:"Please fill in all fields.", date_err:"Please select valid dates.", footer:"© 2025 T-Rex Homestay. All rights reserved.", reviews:"Guest Reviews", no_reviews:"No reviews yet. Be the first!", leave_review:"Leave a Review", your_name:"Your Name", your_rating:"Rating", your_comment:"Your Review", submit_review:"Post Review", admin:"Admin", admin_title:"Admin Dashboard", add_property:"Add Property", edit:"Edit", delete:"Delete", save:"Save", cancel:"Cancel", upload_imgs:"Upload Images", prop_name_en:"Name (EN)", prop_name_zh:"Name (ZH)", prop_desc_en:"Description (EN)", prop_desc_zh:"Description (ZH)", prop_price_wd:"Weekday Price (RM)", prop_price_we:"Weekend Price (RM)", prop_unit:"Unit No.", prop_type:"Room Type", prop_project:"Project", prop_status:"Status", prop_maxguests:"Max Guests", prop_amenities:"Amenities (comma separated)", logout:"Logout", login:"Admin Login", password:"Password", login_btn:"Login", wrong_pw:"Incorrect password.", found:"found", loading:"Loading...", saving:"Saving..." },
+  en:{ brand:"T-Rex Homestay", tagline:"R&F Homestay @ T-Rex", subtitle:"R&F Princess Cove · R&F Seine Region", all_projects:"All Projects", filter_all:"All", filter_studio:"Studio", filter_1br:"1 Bedroom", filter_2br:"2 Bedrooms", filter_3br:"3 Bedrooms", filter_dk:"Dual Key", available:"Available", booked:"Booked", per_night:"/ night", weekday:"Weekday", weekend:"Weekend", max_guests:"Max", back:"← Back", book_now:"Book Now", view_details:"View Details", amenities:"Amenities", booking_title:"Request Booking", checkin:"Check-in", checkout:"Check-out", guestname:"Your Name", phone:"Phone", submit:"Send Booking Request", contact_title:"Complete Your Booking", contact_sub:"We'll confirm within 1 hour via WhatsApp or WeChat.", wa_btn:"Send via WhatsApp", wechat_title:"WeChat", scan_qr:"Scan to add us on WeChat", wechat_id_label:"WeChat ID", summary:"Booking Summary", nights:"nights", weekday_nights:"weekday night(s)", weekend_nights:"weekend night(s)", total:"Est. Total", fill_all:"Please fill in all fields.", date_err:"Please select valid dates.", footer:"© 2025 T-Rex Homestay. All rights reserved.", reviews:"Guest Reviews", no_reviews:"No reviews yet. Be the first!", leave_review:"Leave a Review", your_name:"Your Name", your_rating:"Rating", your_comment:"Your Review", submit_review:"Post Review", admin:"Admin", admin_title:"Admin Dashboard", add_property:"Add Property", edit:"Edit", delete:"Delete", save:"Save", cancel:"Cancel", upload_imgs:"Upload Images", prop_name_en:"Name (EN)", prop_name_zh:"Name (ZH)", prop_desc_en:"Description (EN)", prop_desc_zh:"Description (ZH)", prop_price_wd:"Weekday Price (RM)", prop_price_we:"Weekend Price (RM)", prop_unit:"Unit No.", prop_type:"Room Type", prop_project:"Project", prop_status:"Status", prop_maxguests:"Max Guests", prop_amenities:"Amenities (comma separated)", logout:"Logout", login:"Admin Login", password:"Password", login_btn:"Login", wrong_pw:"Incorrect password.", found:"found", loading:"Loading...", saving:"Saving..." },
   zh:{ brand:"T-Rex 民宿", tagline:"R&F 民宿 @ T-Rex", subtitle:"富力公主湾 · 富力新天地", all_projects:"全部项目", filter_all:"全部", filter_studio:"开间", filter_1br:"一卧室", filter_2br:"两卧室", filter_3br:"三卧室", filter_dk:"双钥匙", available:"可预订", booked:"已订满", per_night:"/ 晚", weekday:"平日", weekend:"周末", max_guests:"最多", back:"← 返回", book_now:"立即预订", view_details:"查看详情", amenities:"设施", booking_title:"预订申请", checkin:"入住日期", checkout:"退房日期", guestname:"您的姓名", phone:"联系电话", submit:"发送预订申请", contact_title:"完成预订", contact_sub:"我们将在1小时内通过 WhatsApp 或微信确认。", wa_btn:"通过 WhatsApp 发送", wechat_title:"微信联系", scan_qr:"扫码添加微信", wechat_id_label:"微信号", summary:"预订摘要", nights:"晚", weekday_nights:"平日晚", weekend_nights:"周末晚", total:"预计总价", fill_all:"请填写所有字段。", date_err:"请选择有效日期。", footer:"© 2025 T-Rex 民宿. 版权所有。", reviews:"客人评价", no_reviews:"暂无评价，欢迎第一个留言！", leave_review:"撰写评价", your_name:"您的姓名", your_rating:"评分", your_comment:"您的评价", submit_review:"提交评价", admin:"管理", admin_title:"后台管理", add_property:"添加房源", edit:"编辑", delete:"删除", save:"保存", cancel:"取消", upload_imgs:"上传图片", prop_name_en:"名称（英文）", prop_name_zh:"名称（中文）", prop_desc_en:"描述（英文）", prop_desc_zh:"描述（中文）", prop_price_wd:"平日价格（RM）", prop_price_we:"周末价格（RM）", prop_unit:"单位号", prop_type:"房型", prop_project:"楼盘", prop_status:"状态", prop_maxguests:"最多入住人数", prop_amenities:"设施（逗号分隔）", logout:"退出", login:"后台登录", password:"密码", login_btn:"登录", wrong_pw:"密码错误。", found:"个结果", loading:"加载中...", saving:"保存中..." },
 };
 
-const ROOM_TYPES = ["Studio","1 Bedroom","2 Bedrooms","3 Bedrooms","Dual Key"];
-
 const genId = () => Date.now() + Math.random();
 const today = () => new Date().toISOString().split("T")[0];
+const isWeekend = (dateStr) => { const d = new Date(dateStr).getDay(); return d===0||d===5||d===6; };
+const calcTotal = (ci, co, pwd, pwe) => {
+  if (!ci||!co) return {total:0,weekdayNights:0,weekendNights:0};
+  const days = Math.round((new Date(co)-new Date(ci))/86400000);
+  if (days<=0) return {total:0,weekdayNights:0,weekendNights:0};
+  let total=0,weekendNights=0,weekdayNights=0;
+  for (let i=0;i<days;i++) {
+    const d=new Date(ci); d.setDate(d.getDate()+i);
+    const ds=d.toISOString().split("T")[0];
+    if(isWeekend(ds)){total+=Number(pwe);weekendNights++;}
+    else{total+=Number(pwd);weekdayNights++;}
+  }
+  return {total,weekdayNights,weekendNights};
+};
+
 const Stars = ({n,size=16}) => <span style={{fontSize:size}}>{[1,2,3,4,5].map(i=><span key={i} style={{color:i<=n?"#f59e0b":"#ddd"}}>★</span>)}</span>;
 
 function DisclaimerModal({lang,onClose}) {
   const zh=lang==="zh";
   const sections=zh?[
-    ["订单成立条件","客户通过本网站提交的任何预订请求，仅为意向表达。只有当我们的工作人员通过 WhatsApp、微信或其他正式通讯渠道，向您明确确认房源可租、日期无误并接受预订后，订单方告成立。"],
-    ["信息准确性","我们尽力确保房源描述和照片与实际相符，但因拍摄光线、设备、家具调整等原因，可能存在轻微视觉差异。"],
-    ["责任限制","对于因不可抗力导致的预订延迟、通信失败或无法入住，我方在法律允许的最大范围内不承担赔偿责任。"],
-    ["第三方链接","本网站可能包含指向外部网站的链接，这些第三方服务的可用性和隐私政策不在我方控制范围内。"],
-    ["知识产权","网站上的所有图片、文字、设计元素未经书面许可，不得复制或用于商业用途。"],
+    ["订单成立条件","客户通过本网站提交的任何预订请求，仅为意向表达。只有当我们的工作人员通过 WhatsApp、微信或其他正式通讯渠道明确确认后，订单方告成立。"],
+    ["信息准确性","我们尽力确保房源描述和照片与实际相符，但可能存在轻微视觉差异。"],
+    ["责任限制","对于因不可抗力导致的预订延迟或无法入住，我方在法律允许范围内不承担赔偿责任。"],
+    ["第三方链接","本网站包含的第三方服务链接，其可用性和隐私政策不在我方控制范围内。"],
+    ["知识产权","网站上所有内容未经书面许可，不得复制或用于商业用途。"],
     ["更新与变更","我们保留随时修改本免责声明的权利，恕不另行通知。"],
   ]:[
-    ["Booking Confirmation","Any booking request is only an expression of interest. An order is confirmed only once our staff explicitly confirms via WhatsApp, WeChat, or another official channel."],
-    ["Accuracy of Information","We strive to ensure descriptions and photos match reality, though slight differences may arise due to lighting or furniture adjustments."],
-    ["Limitation of Liability","To the fullest extent permitted by law, we shall not be held liable for any failure caused by force majeure or third-party service interruptions."],
-    ["Third-Party Links","The website may contain links to external platforms whose availability and privacy practices are beyond our control."],
-    ["Intellectual Property","All images, text, and design elements may not be copied or used commercially without written permission."],
+    ["Booking Confirmation","Any booking request is only an expression of interest confirmed only once our staff explicitly responds via WhatsApp, WeChat, or another official channel."],
+    ["Accuracy of Information","We strive to ensure accuracy though slight differences may arise due to lighting or furniture adjustments."],
+    ["Limitation of Liability","We shall not be held liable for failures caused by force majeure or third-party service interruptions."],
+    ["Third-Party Links","Linked external platforms' availability and privacy practices are beyond our control."],
+    ["Intellectual Property","All content may not be copied or used commercially without written permission."],
     ["Changes","We reserve the right to modify this disclaimer at any time without prior notice."],
   ];
   return (
@@ -183,13 +215,9 @@ function PropertyCard({p,lang,tx,onClick}) {
         </div>
         <p style={{margin:"4px 0 8px",fontSize:12,color:"#999"}}>🔑 {p.unit}</p>
         {avg&&<div style={{display:"flex",alignItems:"center",gap:4,marginBottom:8}}><Stars n={Math.round(avg)} size={13}/><span style={{fontSize:12,color:"#666"}}>{avg} ({p.reviews.length})</span></div>}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:4}}>
-          <div>
-            <span style={{fontSize:13,color:"#555"}}>{tx.weekday}: </span><span style={{fontSize:18,fontWeight:800,color:"#0f2d5a"}}>RM {p.priceWeekday}</span>
-          </div>
-          <div>
-            <span style={{fontSize:13,color:"#555"}}>{tx.weekend}: </span><span style={{fontSize:18,fontWeight:800,color:"#c2410c"}}>RM {p.priceWeekend}</span>
-          </div>
+        <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:4}}>
+          <div><span style={{fontSize:12,color:"#555"}}>{tx.weekday}: </span><span style={{fontSize:17,fontWeight:800,color:"#0f2d5a"}}>RM {p.priceWeekday}</span></div>
+          <div><span style={{fontSize:12,color:"#555"}}>{tx.weekend}: </span><span style={{fontSize:17,fontWeight:800,color:"#c2410c"}}>RM {p.priceWeekend}</span></div>
         </div>
         <p style={{margin:"4px 0 8px",fontSize:11,color:"#aaa"}}>👥 {tx.max_guests} {p.maxGuests}</p>
         {avail&&<button style={{marginTop:8,width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#0f2d5a",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{tx.view_details}</button>}
@@ -280,9 +308,9 @@ function DetailPage({p,lang,tx,onBook,onBack,onAddReview}) {
         <div style={{alignSelf:"start",position:"sticky",top:120}}>
           <div style={{background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:16,padding:22,boxShadow:"0 4px 20px rgba(0,0,0,0.07)"}}>
             <div style={{marginBottom:6}}><span style={{fontSize:13,color:"#666"}}>{tx.weekday}: </span><span style={{fontSize:22,fontWeight:800,color:"#0f2d5a"}}>RM {p.priceWeekday}</span><span style={{fontSize:13,color:"#aaa"}}> {tx.per_night}</span></div>
-            <div style={{marginBottom:16}}><span style={{fontSize:13,color:"#666"}}>{tx.weekend}: </span><span style={{fontSize:22,fontWeight:800,color:"#c2410c"}}>RM {p.priceWeekend}</span><span style={{fontSize:13,color:"#aaa"}}> {tx.per_night}</span></div>
-            <div style={{background:"#f8faff",borderRadius:10,padding:"8px 12px",marginBottom:16,fontSize:12,color:"#666"}}>📅 {lang==="zh"?"周末 = 周五、周六、周日晚":"Weekend = Fri, Sat, Sun nights"}</div>
-            {p.reviews?.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:16}}><Stars n={Math.round(p.reviews.reduce((s,r)=>s+r.rating,0)/p.reviews.length)} size={15}/><span style={{fontSize:13,color:"#666"}}>{(p.reviews.reduce((s,r)=>s+r.rating,0)/p.reviews.length).toFixed(1)} ({p.reviews.length})</span></div>}
+            <div style={{marginBottom:12}}><span style={{fontSize:13,color:"#666"}}>{tx.weekend}: </span><span style={{fontSize:22,fontWeight:800,color:"#c2410c"}}>RM {p.priceWeekend}</span><span style={{fontSize:13,color:"#aaa"}}> {tx.per_night}</span></div>
+            <div style={{background:"#f8faff",borderRadius:10,padding:"8px 12px",marginBottom:14,fontSize:12,color:"#666"}}>📅 {lang==="zh"?"周末 = 周五、周六、周日晚":"Weekend = Fri, Sat, Sun nights"}</div>
+            {p.reviews?.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14}}><Stars n={Math.round(p.reviews.reduce((s,r)=>s+r.rating,0)/p.reviews.length)} size={15}/><span style={{fontSize:13,color:"#666"}}>{(p.reviews.reduce((s,r)=>s+r.rating,0)/p.reviews.length).toFixed(1)} ({p.reviews.length})</span></div>}
             <button onClick={()=>onBook(p)} disabled={p.status!=="available"} style={{width:"100%",padding:"13px 0",borderRadius:12,border:"none",background:p.status==="available"?"linear-gradient(135deg,#0f2d5a,#1a5aad)":"#ddd",color:"#fff",fontWeight:700,fontSize:15,cursor:p.status==="available"?"pointer":"not-allowed"}}>{tx.book_now}</button>
           </div>
         </div>
@@ -311,9 +339,11 @@ function BookingPage({p,lang,tx,onBack}) {
       {step===1?(
         <>
           <h2 style={{margin:"0 0 4px",fontSize:22,fontWeight:800}}>{tx.booking_title}</h2>
-          <p style={{margin:"0 0 22px",color:"#888",fontSize:13}}>🏠 {pname} · 🔑 {p.unit}</p>
+          <p style={{margin:"0 0 16px",color:"#888",fontSize:13}}>🏠 {pname} · 🔑 {p.unit}</p>
           <div style={{background:"#f8faff",borderRadius:10,padding:"8px 14px",marginBottom:16,fontSize:12,color:"#555",border:"1px solid #e0e8f8"}}>
-            📅 {lang==="zh"?"周末价（RM "+p.priceWeekend+"）= 周五、周六、周日晚  |  平日价（RM "+p.priceWeekday+"）= 其余晚":"Weekend (RM "+p.priceWeekend+") = Fri/Sat/Sun nights  |  Weekday (RM "+p.priceWeekday+") = other nights"}
+            📅 {lang==="zh"
+              ? `周末价（RM ${p.priceWeekend}）= 周五、周六、周日晚  |  平日价（RM ${p.priceWeekday}）= 其余晚`
+              : `Weekend (RM ${p.priceWeekend}) = Fri/Sat/Sun  |  Weekday (RM ${p.priceWeekday}) = other nights`}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
             <div><label style={{display:"block",fontSize:12,fontWeight:600,marginBottom:5,color:"#333"}}>{tx.checkin}</label><input type="date" value={ci} onChange={e=>setCi(e.target.value)} style={inp} min={today()}/></div>
@@ -416,8 +446,8 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
               <div><label style={lbl}>{tx.prop_unit}</label><input value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} style={inp} placeholder="e.g. A-12-03"/></div>
               <div><label style={lbl}>{tx.prop_type}</label><select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={inp}>{ROOM_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
               <div><label style={lbl}>{tx.prop_status}</label><select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={inp}><option value="available">{tx.available}</option><option value="booked">{tx.booked}</option></select></div>
-              <div><label style={lbl}>{tx.prop_price_wd} <span style={{color:"#888",fontWeight:400}}>(Mon–Thu)</span></label><input type="number" value={form.priceWeekday} onChange={e=>setForm(f=>({...f,priceWeekday:e.target.value}))} style={inp}/></div>
-              <div><label style={lbl}>{tx.prop_price_we} <span style={{color:"#c2410c",fontWeight:400}}>(Fri–Sun)</span></label><input type="number" value={form.priceWeekend} onChange={e=>setForm(f=>({...f,priceWeekend:e.target.value}))} style={inp}/></div>
+              <div><label style={lbl}>{tx.prop_price_wd} (Mon–Thu)</label><input type="number" value={form.priceWeekday} onChange={e=>setForm(f=>({...f,priceWeekday:e.target.value}))} style={inp}/></div>
+              <div><label style={lbl}>{tx.prop_price_we} (Fri–Sun)</label><input type="number" value={form.priceWeekend} onChange={e=>setForm(f=>({...f,priceWeekend:e.target.value}))} style={inp}/></div>
               <div><label style={lbl}>{tx.prop_maxguests}</label><input type="number" value={form.maxGuests} onChange={e=>setForm(f=>({...f,maxGuests:e.target.value}))} style={inp}/></div>
               <div style={{gridColumn:"span 2"}}><label style={lbl}>{tx.prop_name_en}</label><input value={form.name_en} onChange={e=>setForm(f=>({...f,name_en:e.target.value}))} style={inp}/></div>
               <div style={{gridColumn:"span 2"}}><label style={lbl}>{tx.prop_name_zh}</label><input value={form.name_zh} onChange={e=>setForm(f=>({...f,name_zh:e.target.value}))} style={inp}/></div>
@@ -492,8 +522,8 @@ export default function App() {
   const [showDisclaimer,setShowDisclaimer]=useState(false);
   const tx=T[lang];
 
-  useEffect(()=>{ const d=load(); if(d) setProperties(d); setLoading(false); },[]);
-  const updateProperties=async p=>{ setProperties([...p]); setSaving(true); save(p); setSaving(false); };
+  useEffect(()=>{ loadFromCloud().then(d=>{ if(d) setProperties(d); setLoading(false); }); },[]);
+  const updateProperties=async p=>{ setProperties([...p]); setSaving(true); await saveToCloud(p); setSaving(false); };
   const addReview=(pid,review)=>{
     const updated=properties.map(p=>p.id===pid?{...p,reviews:[...(p.reviews||[]),review]}:p);
     updateProperties(updated);
@@ -502,7 +532,7 @@ export default function App() {
   const filtered=properties.filter(p=>(project==="ALL"||p.project===project)&&(filter==="All"||p.type===filter));
   const nav=(pg,prop=null)=>{setPage(pg);if(prop)setSelected(prop);window.scrollTo(0,0);};
 
-  if(loading) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f8fafc"}}><img src={LOGO} style={{height:80,width:80,objectFit:"contain",borderRadius:10}}/><p style={{color:"#888"}}>{T[lang].loading}</p></div>;
+  if(loading) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f8fafc",fontFamily:"'Segoe UI',system-ui,sans-serif"}}><img src={LOGO} style={{height:80,width:80,objectFit:"contain",borderRadius:10}}/><p style={{color:"#888"}}>{T[lang].loading}</p></div>;
   if(showLogin&&!isAdmin) return <div style={{minHeight:"100vh",background:"#f8fafc",fontFamily:"'Segoe UI',system-ui,sans-serif"}}><Navbar lang={lang} setLang={setLang} tx={tx} onHome={()=>{setShowLogin(false);setPage("home");}} onAdmin={()=>{}}/><AdminLogin tx={tx} onLogin={()=>{setIsAdmin(true);setShowLogin(false);setPage("admin");}}/></div>;
 
   return (
