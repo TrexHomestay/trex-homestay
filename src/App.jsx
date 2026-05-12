@@ -125,16 +125,20 @@ function Navbar({lang,setLang,tx,onHome,onAdmin}) {
 
 function Hero({tx,lang}) {
   return (
-    <div style={{background:"linear-gradient(135deg,#0a1628,#0f2d5a,#1a4a8a)",color:"#fff",textAlign:"center",padding:"56px 20px 48px"}}>
-      <img src={LOGO} alt="logo" style={{height:72,width:72,objectFit:"contain",marginBottom:12,borderRadius:8}}/>
-      <h1 style={{fontSize:30,fontWeight:900,margin:"0 0 10px"}}>{tx.tagline}</h1>
-      <p style={{fontSize:15,color:"#7eb3e8",margin:"0 0 20px"}}>{tx.subtitle}</p>
-      <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
-        {Object.entries(PROJECTS).map(([k,v])=>(
-          <div key={k} style={{background:"rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 20px",border:"1px solid rgba(255,255,255,0.15)"}}>
-            <span>{v.icon}</span><span style={{marginLeft:8,fontWeight:700,fontSize:14}}>{lang==="zh"?v.zh:v.en}</span>
-          </div>
-        ))}
+    <div style={{position:"relative",color:"#fff",textAlign:"center",padding:"56px 20px 48px",overflow:"hidden",minHeight:300}}>
+      <div style={{position:"absolute",inset:0,backgroundImage:"url(https://i.postimg.cc/MZ3D3nXp/1122.png)",backgroundSize:"cover",backgroundPosition:"center 40%",backgroundRepeat:"no-repeat"}}/>
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(10,22,40,0.55) 0%, rgba(10,22,40,0.45) 60%, rgba(10,22,40,0.65) 100%)"}}/>
+      <div style={{position:"relative"}}>
+        <img src={LOGO} alt="logo" style={{height:72,width:72,objectFit:"contain",marginBottom:12,borderRadius:8}}/>
+        <h1 style={{fontSize:30,fontWeight:900,margin:"0 0 10px",textShadow:"0 2px 8px rgba(0,0,0,0.5)"}}>{tx.tagline}</h1>
+        <p style={{fontSize:15,color:"#d0e8ff",margin:"0 0 20px",textShadow:"0 1px 4px rgba(0,0,0,0.5)"}}>{tx.subtitle}</p>
+        <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
+          {Object.entries(PROJECTS).map(([k,v])=>(
+            <div key={k} style={{background:"rgba(255,255,255,0.15)",borderRadius:12,padding:"10px 20px",border:"1px solid rgba(255,255,255,0.3)",backdropFilter:"blur(6px)"}}>
+              <span>{v.icon}</span><span style={{marginLeft:8,fontWeight:700,fontSize:14}}>{lang==="zh"?v.zh:v.en}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
