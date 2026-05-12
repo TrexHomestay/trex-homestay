@@ -16,7 +16,12 @@ const db = getFirestore(firebaseApp);
 const saveToCloud = async (properties) => {
   try {
     await setDoc(doc(db, "data", "properties"), { list: properties });
-  } catch (e) { console.error("Save error:", e); }
+    return true;
+  } catch (e) {
+    console.error("Save error:", e);
+    alert("❌ 保存失败！图片可能太大，请使用 postimages.org 的图片链接代替直接上传。");
+    return false;
+  }
 };
 const loadFromCloud = async () => {
   try {
@@ -24,6 +29,18 @@ const loadFromCloud = async () => {
     if (snap.exists()) return snap.data().list;
   } catch (e) { console.error("Load error:", e); }
   return null;
+};
+
+// ── Cloudinary 图片上传 ────────────────────────────────────
+const CLOUDINARY_CLOUD = "dij7dlx83";
+const CLOUDINARY_PRESET = "trex_upload";
+const uploadImage = async (file) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("upload_preset", CLOUDINARY_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method: "POST", body: fd });
+  const data = await res.json();
+  return data.secure_url;
 };
 
 // ── 联系方式 ───────────────────────────────────────────────
@@ -348,8 +365,19 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
     cancel();
   };
   const del=id=>{if(window.confirm("Delete this property?")) onUpdate(properties.filter(p=>p.id!==id));};
-  const handleImgUpload=e=>{Array.from(e.target.files).forEach(f=>{const r=new FileReader();r.onload=ev=>setForm(prev=>({...prev,images:[...(prev.images||[]),ev.target.result],cover:prev.cover||ev.target.result}));r.readAsDataURL(f);});};
-  const removeImg=i=>setForm(prev=>{const imgs=(prev.images||[]).filter((_,j)=>j!==i);return{...prev,images:imgs,cover:imgs[0]||""};});
+  const [uploading, setUploading] = useState(false);
+  const handleImgUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    setUploading(true);
+    for (const f of files) {
+      try {
+        const url = await uploadImage(f);
+        setForm(prev => ({ ...prev, images: [...(prev.images||[]), url], cover: prev.cover || url }));
+      } catch { alert("图片上传失败，请重试"); }
+    }
+    setUploading(false);
+  };
+  const removeImg = i => setForm(prev => { const imgs = (prev.images||[]).filter((_,j)=>j!==i); return {...prev, images:imgs, cover:imgs[0]||""}; });
   const inp={width:"100%",padding:"9px 11px",borderRadius:8,border:"1.5px solid #e0e0e0",fontSize:13,boxSizing:"border-box",fontFamily:"inherit"};
   const lbl={display:"block",fontSize:12,fontWeight:600,color:"#555",marginBottom:4};
   const grouped=Object.keys(PROJECTS).reduce((acc,k)=>{acc[k]=properties.filter(p=>p.project===k);return acc;},{});
@@ -376,9 +404,22 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
             <div style={{marginTop:16}}>
               <label style={lbl}>🖼️ {tx.upload_imgs}</label>
               <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImgUpload} style={{display:"none"}}/>
-              <button onClick={()=>fileRef.current.click()} style={{padding:"8px 18px",borderRadius:8,border:"1.5px dashed #0f2d5a",background:"#f0f4ff",color:"#0f2d5a",fontWeight:600,fontSize:13,cursor:"pointer"}}>+ Upload Images</button>
-              {form.images?.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:10}}>{form.images.map((img,i)=><div key={i} style={{position:"relative"}}><img src={img} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:i===0?"2.5px solid #0f2d5a":"1px solid #ddd"}}/>{i===0&&<span style={{position:"absolute",bottom:2,left:2,background:"#0f2d5a",color:"#fff",fontSize:9,borderRadius:4,padding:"1px 4px"}}>Cover</span>}<button onClick={()=>removeImg(i)} style={{position:"absolute",top:-6,right:-6,background:"#ef4444",color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:11,cursor:"pointer",lineHeight:1}}>×</button></div>)}</div>}
-              <div style={{marginTop:10}}><label style={{display:"block",fontSize:12,fontWeight:500,color:"#555",marginBottom:4}}>Or cover URL:</label><input value={form.cover} onChange={e=>setForm(f=>({...f,cover:e.target.value}))} style={inp} placeholder="https://..."/></div>
+              <button onClick={()=>fileRef.current.click()} disabled={uploading}
+                style={{padding:"8px 18px",borderRadius:8,border:"1.5px dashed #0f2d5a",background:uploading?"#e0e7ff":"#f0f4ff",color:"#0f2d5a",fontWeight:600,fontSize:13,cursor:uploading?"wait":"pointer"}}>
+                {uploading?"⏳ 上传中...":"+ 上传图片"}
+              </button>
+              <span style={{fontSize:11,color:"#aaa",marginLeft:10}}>支持多张，自动上传到云端</span>
+              {form.images?.length>0&&(
+                <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:10}}>
+                  {form.images.map((img,i)=>(
+                    <div key={i} style={{position:"relative"}}>
+                      <img src={img} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:i===0?"2.5px solid #0f2d5a":"1px solid #ddd"}}/>
+                      {i===0&&<span style={{position:"absolute",bottom:2,left:2,background:"#0f2d5a",color:"#fff",fontSize:9,borderRadius:4,padding:"1px 4px"}}>封面</span>}
+                      <button onClick={()=>removeImg(i)} style={{position:"absolute",top:-6,right:-6,background:"#ef4444",color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:11,cursor:"pointer",lineHeight:1}}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div style={{display:"flex",gap:10,marginTop:20}}>
               <button onClick={save} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"#0f2d5a",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>{tx.save}</button>
