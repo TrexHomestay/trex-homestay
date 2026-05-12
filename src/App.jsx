@@ -1,103 +1,112 @@
 import { useState, useEffect, useRef } from "react";
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
-// ── Firebase 初始化 ────────────────────────────────────────
-const firebaseApp = initializeApp({
-  apiKey: "AIzaSyA-ZKs5svNygZga3rNoLJ7k6q9JpdXjH3I",
-  authDomain: "trex-homestay.firebaseapp.com",
-  projectId: "trex-homestay",
-  storageBucket: "trex-homestay.firebasestorage.app",
-  messagingSenderId: "162512186134",
-  appId: "1:162512186134:web:ca52ac4a2f8db49da43e37"
-});
-const db = getFirestore(firebaseApp);
+const STORAGE_KEY = "trex_v3";
+const save = (p) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {} };
+const load = () => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : null; } catch { return null; } };
 
-const saveToCloud = async (properties) => {
-  try {
-    await setDoc(doc(db, "data", "properties"), { list: properties });
-    return true;
-  } catch (e) {
-    console.error("Save error:", e);
-    alert("❌ 保存失败！图片可能太大，请使用 postimages.org 的图片链接代替直接上传。");
-    return false;
-  }
-};
-const loadFromCloud = async () => {
-  try {
-    const snap = await getDoc(doc(db, "data", "properties"));
-    if (snap.exists()) return snap.data().list;
-  } catch (e) { console.error("Load error:", e); }
-  return null;
-};
-
-// ── Cloudinary 图片上传 ────────────────────────────────────
 const CLOUDINARY_CLOUD = "dij7dlx83";
 const CLOUDINARY_PRESET = "trex_upload";
 const uploadImage = async (file) => {
   const fd = new FormData();
   fd.append("file", file);
   fd.append("upload_preset", CLOUDINARY_PRESET);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method: "POST", body: fd });
-  const data = await res.json();
-  return data.secure_url;
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method:"POST", body:fd });
+  const d = await res.json();
+  return d.secure_url;
 };
 
-// ── 联系方式 ───────────────────────────────────────────────
 const WHATSAPP_NUMBER = "60137700776";
 const WECHAT_ID = "TrexHomestay";
-const WA_QR_URL = "https://i.postimg.cc/LsJwKH9B/Whats-App-QR.jpg";
-const WX_QR_URL = "https://i.postimg.cc/N0KSqgs1/Wechat-QR.jpg";
-const LOGO_URL = "https://i.postimg.cc/W1PBQDtT/logo.jpg";
+const WA_QR = "https://i.postimg.cc/LsJwKH9B/Whats-App-QR.jpg";
+const WX_QR = "https://i.postimg.cc/N0KSqgs1/Wechat-QR.jpg";
+const LOGO = "https://i.postimg.cc/W1PBQDtT/logo.jpg";
 const ADMIN_PW = "trex2025";
 
 const PROJECTS = {
-  RF_PRINCESS: { en: "R&F Princess Cove", zh: "富力公主湾", icon: "🌊" },
-  RF_SEINE:    { en: "R&F Seine Region",  zh: "富力新天地",  icon: "🏙️" },
+  RF_PRINCESS: { en:"R&F Princess Cove", zh:"富力公主湾", icon:"🌊" },
+  RF_SEINE:    { en:"R&F Seine Region",  zh:"富力新天地",  icon:"🏙️" },
 };
-const AMENITY_ICONS = { "WiFi":"📶","Air Con":"❄️","Smart TV":"📺","Kitchen":"🍳","Full Kitchen":"🍳","Mini Kitchen":"🍳","Washer":"🫧","Balcony":"🌅","Pool Access":"🏊","Parking":"🅿️","Sea View":"🌊","City View":"🏙️","空调":"❄️","智能电视":"📺","厨房":"🍳","完整厨房":"🍳","迷你厨房":"🍳","洗衣机":"🫧","阳台":"🌅","泳池":"🏊","停车位":"🅿️","海景":"🌊","城景":"🏙️" };
 
-const DEFAULT_PROPERTIES = [
-  { id:1, project:"RF_PRINCESS", unit:"A-12-03", type:"Studio", name_en:"Cozy Studio · A-12-03", name_zh:"温馨开间 · A-12-03", desc_en:"Modern studio with stunning sea views at R&F Princess Cove.", desc_zh:"富力公主湾现代开间，享有壮丽海景，配备顶级设施。", price:180, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80", images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80","https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80","https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=800&q=80","https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Kitchen","Washer","Sea View"], amenities_zh:["WiFi","空调","智能电视","厨房","洗衣机","海景"], reviews:[{author:"Li Wei",rating:5,date:"2025-03-10",text_en:"Amazing view, super clean!",text_zh:"景色绝美，非常干净！"}] },
-  { id:2, project:"RF_PRINCESS", unit:"B-08-11", type:"2 Bedrooms", name_en:"Seaview Suite · B-08-11", name_zh:"海景套房 · B-08-11", desc_en:"Spacious 2-bedroom with panoramic Strait of Johor views.", desc_zh:"宽敞两卧室，全景柔佛海峡，适合家庭入住。", price:320, status:"available", maxGuests:5, cover:"https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", images:["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80","https://images.unsplash.com/photo-1540518614846-7eded433c457?w=800&q=80","https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=800&q=80","https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Full Kitchen","Washer","Sea View","Balcony"], amenities_zh:["WiFi","空调","智能电视","完整厨房","洗衣机","海景","阳台"], reviews:[{author:"Siti",rating:5,date:"2025-02-20",text_en:"Best homestay in JB!",text_zh:"新山最佳民宿！"}] },
-  { id:3, project:"RF_PRINCESS", unit:"C-15-02", type:"3 Bedrooms", name_en:"Luxury Villa · C-15-02", name_zh:"豪华大房 · C-15-02", desc_en:"Premium 3-bedroom unit on high floor with full sea view.", desc_zh:"高楼层顶级三卧室，全海景，适合大家庭。", price:480, status:"available", maxGuests:8, cover:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80", images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Full Kitchen","Washer","Sea View","Balcony","Pool Access","Parking"], amenities_zh:["WiFi","空调","智能电视","完整厨房","洗衣机","海景","阳台","泳池","停车位"], reviews:[] },
-  { id:4, project:"RF_SEINE", unit:"S-05-08", type:"Studio", name_en:"Urban Studio · S-05-08", name_zh:"都市开间 · S-05-08", desc_en:"Chic studio in R&F Seine Region, walking distance to malls.", desc_zh:"富力新天地时尚开间，步行可达购物中心和餐厅。", price:160, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80", images:["https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80","https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=800&q=80","https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&q=80","https://images.unsplash.com/photo-1554995207-c18c203602cb?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Mini Kitchen"], amenities_zh:["WiFi","空调","智能电视","迷你厨房"], reviews:[] },
-  { id:5, project:"RF_SEINE", unit:"S-10-14", type:"2 Bedrooms", name_en:"City View 2BR · S-10-14", name_zh:"城景双房 · S-10-14", desc_en:"Elegant 2-bedroom in the heart of Johor Bahru.", desc_zh:"新山市中心优雅两卧室，城市景观，交通便利。", price:300, status:"booked", maxGuests:4, cover:"https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80", images:["https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80","https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80","https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&q=80","https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Full Kitchen","Washer","City View"], amenities_zh:["WiFi","空调","智能电视","完整厨房","洗衣机","城景"], reviews:[] },
-  { id:6, project:"RF_SEINE", unit:"S-12-01", type:"3 Bedrooms", name_en:"Family Suite · S-12-01", name_zh:"家庭套间 · S-12-01", desc_en:"Spacious 3-bedroom family suite with modern furnishings.", desc_zh:"富力新天地宽敞三卧室家庭套间，现代装修。", price:420, status:"available", maxGuests:8, cover:"https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80", images:["https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80","https://images.unsplash.com/photo-1600047508788-786f3865b759?w=800&q=80","https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Full Kitchen","Washer","Balcony","Parking"], amenities_zh:["WiFi","空调","智能电视","完整厨房","洗衣机","阳台","停车位"], reviews:[] },
+const AMI = { "WiFi":"📶","Air Con":"❄️","Smart TV":"📺","Kitchen":"🍳","Full Kitchen":"🍳","Mini Kitchen":"🍳","Washer":"🫧","Balcony":"🌅","Pool Access":"🏊","Parking":"🅿️","Sea View":"🌊","City View":"🏙️","空调":"❄️","智能电视":"📺","厨房":"🍳","完整厨房":"🍳","迷你厨房":"🍳","洗衣机":"🫧","阳台":"🌅","泳池":"🏊","停车位":"🅿️","海景":"🌊","城景":"🏙️" };
+
+const DEFAULT_PROPS = [
+  { id:1, project:"RF_PRINCESS", unit:"A-12-03", type:"Studio", name_en:"Cozy Studio · A-12-03", name_zh:"温馨开间 · A-12-03", desc_en:"Modern studio with stunning sea views at R&F Princess Cove.", desc_zh:"富力公主湾现代开间，享有壮丽海景。", price:180, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80", images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80","https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80","https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Kitchen","Sea View"], amenities_zh:["WiFi","空调","智能电视","厨房","海景"], reviews:[{author:"Li Wei",rating:5,date:"2025-03-10",text_en:"Amazing view!",text_zh:"景色绝美！"}] },
+  { id:2, project:"RF_PRINCESS", unit:"B-08-11", type:"2 Bedrooms", name_en:"Seaview Suite · B-08-11", name_zh:"海景套房 · B-08-11", desc_en:"Spacious 2-bedroom with panoramic sea views.", desc_zh:"宽敞两卧室，全景柔佛海峡。", price:320, status:"available", maxGuests:5, cover:"https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", images:["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80","https://images.unsplash.com/photo-1540518614846-7eded433c457?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","Sea View","Balcony"], amenities_zh:["WiFi","空调","完整厨房","海景","阳台"], reviews:[] },
+  { id:3, project:"RF_PRINCESS", unit:"C-15-02", type:"3 Bedrooms", name_en:"Luxury Villa · C-15-02", name_zh:"豪华大房 · C-15-02", desc_en:"Premium 3-bedroom on high floor with full sea view.", desc_zh:"高楼层三卧室，全海景。", price:480, status:"available", maxGuests:8, cover:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80", images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","Sea View","Pool Access","Parking"], amenities_zh:["WiFi","空调","完整厨房","海景","泳池","停车位"], reviews:[] },
+  { id:4, project:"RF_SEINE", unit:"S-05-08", type:"Studio", name_en:"Urban Studio · S-05-08", name_zh:"都市开间 · S-05-08", desc_en:"Chic studio in R&F Seine Region.", desc_zh:"富力新天地时尚开间。", price:160, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80", images:["https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Mini Kitchen"], amenities_zh:["WiFi","空调","智能电视","迷你厨房"], reviews:[] },
+  { id:5, project:"RF_SEINE", unit:"S-10-14", type:"2 Bedrooms", name_en:"City View 2BR · S-10-14", name_zh:"城景双房 · S-10-14", desc_en:"Elegant 2-bedroom in Johor Bahru city centre.", desc_zh:"新山市中心优雅两卧室。", price:300, status:"booked", maxGuests:4, cover:"https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80", images:["https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","City View"], amenities_zh:["WiFi","空调","完整厨房","城景"], reviews:[] },
+  { id:6, project:"RF_SEINE", unit:"S-12-01", type:"3 Bedrooms", name_en:"Family Suite · S-12-01", name_zh:"家庭套间 · S-12-01", desc_en:"Spacious 3-bedroom family suite.", desc_zh:"宽敞三卧室家庭套间。", price:420, status:"available", maxGuests:8, cover:"https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80", images:["https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","Balcony","Parking"], amenities_zh:["WiFi","空调","完整厨房","阳台","停车位"], reviews:[] },
 ];
 
 const T = {
-  en:{ brand:"T-Rex Homestay", tagline:"Premium Homestays in Johor Bahru", subtitle:"R&F Princess Cove · R&F Seine Region", all_projects:"All Projects", filter_all:"All", filter_studio:"Studio", filter_2br:"2 Bedrooms", filter_3br:"3 Bedrooms", available:"Available", booked:"Booked", per_night:"/ night", max_guests:"Max", back:"← Back", book_now:"Book Now", view_details:"View Details", amenities:"Amenities", booking_title:"Request Booking", checkin:"Check-in", checkout:"Check-out", guestname:"Your Name", phone:"Phone", submit:"Send Booking Request", contact_title:"Complete Your Booking", contact_sub:"We'll confirm within 1 hour via WhatsApp or WeChat.", wa_btn:"Send via WhatsApp", wechat_title:"WeChat", scan_qr:"Scan to add us on WeChat", wechat_id_label:"WeChat ID", summary:"Booking Summary", nights:"nights", total:"Est. Total", fill_all:"Please fill in all fields.", date_err:"Please select valid dates.", footer:"© 2025 T-Rex Homestay. All rights reserved.", reviews:"Guest Reviews", no_reviews:"No reviews yet. Be the first!", leave_review:"Leave a Review", your_name:"Your Name", your_rating:"Rating", your_comment:"Your Review", submit_review:"Post Review", admin:"Admin", admin_title:"Admin Dashboard", add_property:"Add Property", edit:"Edit", delete:"Delete", save:"Save", cancel:"Cancel", upload_imgs:"Upload Images", prop_name_en:"Name (EN)", prop_name_zh:"Name (ZH)", prop_desc_en:"Description (EN)", prop_desc_zh:"Description (ZH)", prop_price:"Price (RM/night)", prop_unit:"Unit No.", prop_type:"Room Type", prop_project:"Project", prop_status:"Status", prop_maxguests:"Max Guests", prop_amenities:"Amenities (comma separated)", logout:"Logout", login:"Admin Login", password:"Password", login_btn:"Login", wrong_pw:"Incorrect password.", found:"found", loading:"Loading properties...", saving:"Saving..." },
-  zh:{ brand:"T-Rex 民宿", tagline:"新山精品民宿", subtitle:"富力公主湾 · 富力新天地", all_projects:"全部项目", filter_all:"全部", filter_studio:"开间", filter_2br:"两卧室", filter_3br:"三卧室", available:"可预订", booked:"已订满", per_night:"/ 晚", max_guests:"最多", back:"← 返回", book_now:"立即预订", view_details:"查看详情", amenities:"设施", booking_title:"预订申请", checkin:"入住日期", checkout:"退房日期", guestname:"您的姓名", phone:"联系电话", submit:"发送预订申请", contact_title:"完成预订", contact_sub:"我们将在1小时内通过 WhatsApp 或微信确认。", wa_btn:"通过 WhatsApp 发送", wechat_title:"微信联系", scan_qr:"扫码添加微信", wechat_id_label:"微信号", summary:"预订摘要", nights:"晚", total:"预计总价", fill_all:"请填写所有字段。", date_err:"请选择有效日期。", footer:"© 2025 T-Rex 民宿. 版权所有。", reviews:"客人评价", no_reviews:"暂无评价，欢迎第一个留言！", leave_review:"撰写评价", your_name:"您的姓名", your_rating:"评分", your_comment:"您的评价", submit_review:"提交评价", admin:"管理", admin_title:"后台管理", add_property:"添加房源", edit:"编辑", delete:"删除", save:"保存", cancel:"取消", upload_imgs:"上传图片", prop_name_en:"名称（英文）", prop_name_zh:"名称（中文）", prop_desc_en:"描述（英文）", prop_desc_zh:"描述（中文）", prop_price:"价格（RM/晚）", prop_unit:"单位号", prop_type:"房型", prop_project:"楼盘", prop_status:"状态", prop_maxguests:"最多入住人数", prop_amenities:"设施（逗号分隔）", logout:"退出", login:"后台登录", password:"密码", login_btn:"登录", wrong_pw:"密码错误。", found:"个结果", loading:"正在加载房源...", saving:"正在保存..." },
+  en:{ brand:"T-Rex Homestay", tagline:"Premium Homestays in Johor Bahru", subtitle:"R&F Princess Cove · R&F Seine Region", all_projects:"All Projects", filter_all:"All", filter_studio:"Studio", filter_1br:"1 Bedroom", filter_2br:"2 Bedrooms", filter_3br:"3 Bedrooms", available:"Available", booked:"Booked", per_night:"/ night", max_guests:"Max", back:"← Back", book_now:"Book Now", view_details:"View Details", amenities:"Amenities", booking_title:"Request Booking", checkin:"Check-in", checkout:"Check-out", guestname:"Your Name", phone:"Phone", submit:"Send Booking Request", contact_title:"Complete Your Booking", contact_sub:"We'll confirm within 1 hour via WhatsApp or WeChat.", wa_btn:"Send via WhatsApp", wechat_title:"WeChat", scan_qr:"Scan to add us on WeChat", wechat_id_label:"WeChat ID", summary:"Booking Summary", nights:"nights", total:"Est. Total", fill_all:"Please fill in all fields.", date_err:"Please select valid dates.", footer:"© 2025 T-Rex Homestay. All rights reserved.", reviews:"Guest Reviews", no_reviews:"No reviews yet. Be the first!", leave_review:"Leave a Review", your_name:"Your Name", your_rating:"Rating", your_comment:"Your Review", submit_review:"Post Review", admin:"Admin", admin_title:"Admin Dashboard", add_property:"Add Property", edit:"Edit", delete:"Delete", save:"Save", cancel:"Cancel", upload_imgs:"Upload Images", prop_name_en:"Name (EN)", prop_name_zh:"Name (ZH)", prop_desc_en:"Description (EN)", prop_desc_zh:"Description (ZH)", prop_price:"Price (RM/night)", prop_unit:"Unit No.", prop_type:"Room Type", prop_project:"Project", prop_status:"Status", prop_maxguests:"Max Guests", prop_amenities:"Amenities (comma separated)", logout:"Logout", login:"Admin Login", password:"Password", login_btn:"Login", wrong_pw:"Incorrect password.", found:"found", loading:"Loading...", saving:"Saving..." },
+  zh:{ brand:"T-Rex 民宿", tagline:"新山精品民宿", subtitle:"富力公主湾 · 富力新天地", all_projects:"全部项目", filter_all:"全部", filter_studio:"开间", filter_1br:"一卧室", filter_2br:"两卧室", filter_3br:"三卧室", available:"可预订", booked:"已订满", per_night:"/ 晚", max_guests:"最多", back:"← 返回", book_now:"立即预订", view_details:"查看详情", amenities:"设施", booking_title:"预订申请", checkin:"入住日期", checkout:"退房日期", guestname:"您的姓名", phone:"联系电话", submit:"发送预订申请", contact_title:"完成预订", contact_sub:"我们将在1小时内通过 WhatsApp 或微信确认。", wa_btn:"通过 WhatsApp 发送", wechat_title:"微信联系", scan_qr:"扫码添加微信", wechat_id_label:"微信号", summary:"预订摘要", nights:"晚", total:"预计总价", fill_all:"请填写所有字段。", date_err:"请选择有效日期。", footer:"© 2025 T-Rex 民宿. 版权所有。", reviews:"客人评价", no_reviews:"暂无评价，欢迎第一个留言！", leave_review:"撰写评价", your_name:"您的姓名", your_rating:"评分", your_comment:"您的评价", submit_review:"提交评价", admin:"管理", admin_title:"后台管理", add_property:"添加房源", edit:"编辑", delete:"删除", save:"保存", cancel:"取消", upload_imgs:"上传图片", prop_name_en:"名称（英文）", prop_name_zh:"名称（中文）", prop_desc_en:"描述（英文）", prop_desc_zh:"描述（中文）", prop_price:"价格（RM/晚）", prop_unit:"单位号", prop_type:"房型", prop_project:"楼盘", prop_status:"状态", prop_maxguests:"最多入住人数", prop_amenities:"设施（逗号分隔）", logout:"退出", login:"后台登录", password:"密码", login_btn:"登录", wrong_pw:"密码错误。", found:"个结果", loading:"加载中...", saving:"保存中..." },
 };
 
 const genId = () => Date.now() + Math.random();
 const today = () => new Date().toISOString().split("T")[0];
-const nightsBetween = (a,b) => a&&b?Math.max(0,Math.round((new Date(b)-new Date(a))/86400000)):0;
+const nights = (a,b) => a&&b ? Math.max(0,Math.round((new Date(b)-new Date(a))/86400000)) : 0;
 
-const Stars = ({n,size=16}) => (
-  <span style={{fontSize:size,lineHeight:1}}>
-    {[1,2,3,4,5].map(i=><span key={i} style={{color:i<=n?"#f59e0b":"#ddd"}}>★</span>)}
-  </span>
-);
+const Stars = ({n,size=16}) => <span style={{fontSize:size}}>{[1,2,3,4,5].map(i=><span key={i} style={{color:i<=n?"#f59e0b":"#ddd"}}>★</span>)}</span>;
+
+function DisclaimerModal({lang,onClose}) {
+  const zh = lang==="zh";
+  const sections = zh ? [
+    ["订单成立条件","客户通过本网站提交的任何预订请求，仅为意向表达。只有当我们的工作人员通过 WhatsApp、微信或其他正式通讯渠道，向您明确确认房源可租、日期无误并接受预订后，订单方告成立。在未收到我方书面/消息确认前，不视为预订成功，由此产生的任何行程安排或费用，我方不承担责任。"],
+    ["信息准确性","我们尽力确保房源描述和照片与实际相符，但因拍摄光线、设备、家具调整等原因，可能存在轻微视觉差异，所有展示内容不应被视为对房源的绝对保证。建议入住前与我们确认最新状况。"],
+    ["责任限制","对于因不可抗力（如自然灾害、政府政策、突发公共卫生事件、网络攻击等）、第三方服务中断或其他非我方过失导致的预订延迟、通信失败或无法入住，我方在法律允许的最大范围内不承担赔偿责任。"],
+    ["第三方链接与内容","本网站可能包含指向外部网站或服务的链接（如 WhatsApp、微信等），这些第三方服务的可用性和隐私政策不在我方控制范围内。您使用此类服务需自行承担风险。"],
+    ["知识产权","网站上的所有图片、文字、设计元素未经书面许可，不得复制、转载或用于商业用途。"],
+    ["更新与变更","我们保留随时修改本免责声明及网站内容的权利，恕不另行通知。您继续使用本网站即视为同意当时的免责条款。"],
+  ] : [
+    ["Booking Confirmation","Any booking request submitted through this website is only an expression of interest. An order is only considered confirmed once our staff explicitly confirms the unit's availability, dates, and acceptance via WhatsApp, WeChat, or another official channel. Until you receive our written confirmation, no booking is deemed successful."],
+    ["Accuracy of Information","While we strive to ensure descriptions and photos match reality, slight differences may arise due to lighting or furniture adjustments. All content should not be interpreted as an absolute guarantee."],
+    ["Limitation of Liability","To the fullest extent permitted by law, we shall not be held liable for any failure caused by force majeure, government policies, public health emergencies, or third-party service interruptions."],
+    ["Third-Party Links","The website may contain links to external platforms (e.g., WhatsApp, WeChat). Their availability and privacy practices are beyond our control."],
+    ["Intellectual Property","All images, text, and design elements may not be copied or used commercially without written permission."],
+    ["Changes","We reserve the right to modify this disclaimer at any time without prior notice."],
+  ];
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,maxWidth:720,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{position:"sticky",top:0,background:"#0a1628",borderRadius:"20px 20px 0 0",padding:"18px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#fff"}}>{zh?"免责声明":"Disclaimer"}</h2>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",width:32,height:32,borderRadius:"50%",fontSize:18,cursor:"pointer"}}>×</button>
+        </div>
+        <div style={{padding:"24px 28px"}}>
+          <p style={{fontSize:14,lineHeight:1.8,color:"#444",marginTop:0}}>
+            {zh ? "本网站所展示的所有房源信息仅供展示与参考之用，不构成任何即时预订确认或合同承诺。网站未实时关联房源空置状态，具体房源的可用性、价格及最终预订结果，必须通过我们工作人员的人工确认为准。"
+                : "All property listings displayed on this website are for display and informational purposes only and do not constitute a real-time booking confirmation or contractual offer. Actual availability and final confirmation are subject to manual confirmation by our team."}
+          </p>
+          {sections.map(([t,c])=>(
+            <div key={t} style={{marginBottom:16}}>
+              <h4 style={{margin:"0 0 6px",fontSize:14,fontWeight:700,color:"#0f2d5a"}}>{t}</h4>
+              <p style={{margin:0,fontSize:13,lineHeight:1.8,color:"#555"}}>{c}</p>
+            </div>
+          ))}
+          <p style={{fontSize:13,color:"#888",marginTop:20,borderTop:"1px solid #eee",paddingTop:16}}>
+            {zh ? <>如有疑问，请通过 WhatsApp <strong>+6013-7700776</strong> 或微信联系我们。</>
+                : <>Questions? Contact us via WhatsApp <strong>+6013-7700776</strong> or WeChat.</>}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Navbar({lang,setLang,tx,onHome,onAdmin}) {
   return (
     <nav style={{background:"rgba(255,255,255,0.97)",backdropFilter:"blur(12px)",borderBottom:"1px solid #eee",position:"sticky",top:0,zIndex:200}}>
       <div style={{maxWidth:1200,margin:"0 auto",padding:"0 20px",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
         <button onClick={onHome} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
-          <img src={LOGO_URL} alt="logo" style={{height:40,width:40,objectFit:"contain",borderRadius:6}}/>
-          <span style={{fontSize:17,fontWeight:800,color:"#111",letterSpacing:-0.5}}>{tx.brand}</span>
+          <img src={LOGO} alt="logo" style={{height:40,width:40,objectFit:"contain",borderRadius:6}}/>
+          <span style={{fontSize:17,fontWeight:800,color:"#111"}}>{tx.brand}</span>
         </button>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {["en","zh"].map(l=>(
-            <button key={l} onClick={()=>setLang(l)} style={{padding:"5px 13px",borderRadius:20,border:"1.5px solid",fontSize:12,fontWeight:700,cursor:"pointer",borderColor:lang===l?"#111":"#ddd",background:lang===l?"#111":"#fff",color:lang===l?"#fff":"#666"}}>
-              {l==="en"?"EN":"中文"}
-            </button>
+            <button key={l} onClick={()=>setLang(l)} style={{padding:"5px 13px",borderRadius:20,border:"1.5px solid",fontSize:12,fontWeight:700,cursor:"pointer",borderColor:lang===l?"#111":"#ddd",background:lang===l?"#111":"#fff",color:lang===l?"#fff":"#666"}}>{l==="en"?"EN":"中文"}</button>
           ))}
-          <button onClick={onAdmin} style={{padding:"5px 13px",borderRadius:20,border:"1.5px solid #e0e0e0",fontSize:12,fontWeight:600,cursor:"pointer",background:"#fff",color:"#888"}}>
-            ⚙️ {tx.admin}
-          </button>
+          <button onClick={onAdmin} style={{padding:"5px 13px",borderRadius:20,border:"1.5px solid #e0e0e0",fontSize:12,fontWeight:600,cursor:"pointer",background:"#fff",color:"#888"}}>⚙️ {tx.admin}</button>
         </div>
       </div>
     </nav>
@@ -106,15 +115,14 @@ function Navbar({lang,setLang,tx,onHome,onAdmin}) {
 
 function Hero({tx,lang}) {
   return (
-    <div style={{background:"linear-gradient(135deg,#0a1628 0%,#0f2d5a 50%,#1a4a8a 100%)",color:"#fff",textAlign:"center",padding:"56px 20px 48px"}}>
-      <img src={LOGO_URL} alt="logo" style={{height:72,width:72,objectFit:"contain",marginBottom:12,borderRadius:8}}/>
-      <h1 style={{fontSize:30,fontWeight:900,margin:"0 0 10px",letterSpacing:-1}}>{tx.tagline}</h1>
+    <div style={{background:"linear-gradient(135deg,#0a1628,#0f2d5a,#1a4a8a)",color:"#fff",textAlign:"center",padding:"56px 20px 48px"}}>
+      <img src={LOGO} alt="logo" style={{height:72,width:72,objectFit:"contain",marginBottom:12,borderRadius:8}}/>
+      <h1 style={{fontSize:30,fontWeight:900,margin:"0 0 10px"}}>{tx.tagline}</h1>
       <p style={{fontSize:15,color:"#7eb3e8",margin:"0 0 20px"}}>{tx.subtitle}</p>
       <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
         {Object.entries(PROJECTS).map(([k,v])=>(
           <div key={k} style={{background:"rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 20px",border:"1px solid rgba(255,255,255,0.15)"}}>
-            <span style={{fontSize:20}}>{v.icon}</span>
-            <span style={{marginLeft:8,fontWeight:700,fontSize:14}}>{lang==="zh"?v.zh:v.en}</span>
+            <span>{v.icon}</span><span style={{marginLeft:8,fontWeight:700,fontSize:14}}>{lang==="zh"?v.zh:v.en}</span>
           </div>
         ))}
       </div>
@@ -123,17 +131,15 @@ function Hero({tx,lang}) {
 }
 
 function FilterBar({project,setProject,filter,setFilter,tx,lang,count}) {
-  const projects=[{key:"ALL",en:tx.all_projects,zh:tx.all_projects},...Object.entries(PROJECTS).map(([k,v])=>({key:k,en:v.en,zh:v.zh}))];
-  const types=[["All",tx.filter_all],["Studio",tx.filter_studio],["2 Bedrooms",tx.filter_2br],["3 Bedrooms",tx.filter_3br]];
-  const btn=(active,onClick,label,sm)=>(
-    <button onClick={onClick} style={{padding:sm?"6px 14px":"7px 18px",borderRadius:24,border:"1.5px solid",fontSize:sm?12:13,fontWeight:600,cursor:"pointer",borderColor:active?"#0f2d5a":"#e0e0e0",background:active?"#0f2d5a":"#fff",color:active?"#fff":"#555"}}>{label}</button>
+  const projs=[{key:"ALL",en:tx.all_projects,zh:tx.all_projects},...Object.entries(PROJECTS).map(([k,v])=>({key:k,en:v.en,zh:v.zh}))];
+  const types=[["All",tx.filter_all],["Studio",tx.filter_studio],["1 Bedroom",tx.filter_1br],["2 Bedrooms",tx.filter_2br],["3 Bedrooms",tx.filter_3br]];
+  const btn=(active,fn,label,sm)=>(
+    <button onClick={fn} style={{padding:sm?"6px 14px":"7px 18px",borderRadius:24,border:"1.5px solid",fontSize:sm?12:13,fontWeight:600,cursor:"pointer",borderColor:active?"#0f2d5a":"#e0e0e0",background:active?"#0f2d5a":"#fff",color:active?"#fff":"#555"}}>{label}</button>
   );
   return (
     <div style={{background:"#fff",borderBottom:"1px solid #f0f0f0",padding:"16px 20px",position:"sticky",top:58,zIndex:100}}>
       <div style={{maxWidth:1200,margin:"0 auto"}}>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
-          {projects.map(p=>btn(project===p.key,()=>setProject(p.key),lang==="zh"?p.zh:p.en,false))}
-        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>{projs.map(p=>btn(project===p.key,()=>setProject(p.key),lang==="zh"?p.zh:p.en,false))}</div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
           {types.map(([k,l])=>btn(filter===k,()=>setFilter(k),l,true))}
           <span style={{marginLeft:"auto",fontSize:12,color:"#999"}}>{count} {tx.found}</span>
@@ -179,21 +185,18 @@ function Carousel({images}) {
   useEffect(()=>setIdx(0),[images]);
   const imgs=images||[];
   return (
-    <div style={{position:"relative",borderRadius:16,overflow:"hidden",background:"#000",marginBottom:24,userSelect:"none"}}>
+    <div style={{position:"relative",borderRadius:16,overflow:"hidden",background:"#000",marginBottom:24}}>
       <img src={imgs[idx]} alt="" style={{width:"100%",height:360,objectFit:"cover",display:"block"}}/>
       {imgs.length>1&&<>
         <button onClick={()=>setIdx((idx-1+imgs.length)%imgs.length)} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,0.88)",border:"none",borderRadius:"50%",width:38,height:38,fontSize:20,cursor:"pointer",fontWeight:700}}>‹</button>
         <button onClick={()=>setIdx((idx+1)%imgs.length)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,0.88)",border:"none",borderRadius:"50%",width:38,height:38,fontSize:20,cursor:"pointer",fontWeight:700}}>›</button>
-        <div style={{position:"absolute",bottom:10,left:0,right:0,display:"flex",justifyContent:"center",gap:5}}>
-          {imgs.map((_,i)=><button key={i} onClick={()=>setIdx(i)} style={{width:i===idx?22:7,height:7,borderRadius:4,border:"none",background:i===idx?"#fff":"rgba(255,255,255,0.45)",cursor:"pointer",padding:0,transition:"all .2s"}}/>)}
-        </div>
         <div style={{position:"absolute",bottom:10,right:14,background:"rgba(0,0,0,0.45)",color:"#fff",borderRadius:20,padding:"2px 9px",fontSize:11}}>{idx+1}/{imgs.length}</div>
       </>}
     </div>
   );
 }
 
-function ReviewSection({p,lang,tx,onAddReview}) {
+function ReviewSection({p,lang,tx,onAdd}) {
   const [show,setShow]=useState(false);
   const [name,setName]=useState("");
   const [rating,setRating]=useState(5);
@@ -201,22 +204,22 @@ function ReviewSection({p,lang,tx,onAddReview}) {
   const [hover,setHover]=useState(0);
   const submit=()=>{
     if(!name.trim()||!comment.trim()) return;
-    onAddReview(p.id,{author:name,rating,date:today(),text_en:comment,text_zh:comment});
+    onAdd(p.id,{author:name,rating,date:today(),text_en:comment,text_zh:comment});
     setName("");setComment("");setRating(5);setShow(false);
   };
   return (
     <div style={{marginTop:32}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-        <h3 style={{margin:0,fontSize:17,fontWeight:700,color:"#111"}}>💬 {tx.reviews} ({p.reviews?.length||0})</h3>
+        <h3 style={{margin:0,fontSize:17,fontWeight:700}}>💬 {tx.reviews} ({p.reviews?.length||0})</h3>
         <button onClick={()=>setShow(!show)} style={{padding:"7px 16px",borderRadius:20,border:"1.5px solid #0f2d5a",background:show?"#0f2d5a":"#fff",color:show?"#fff":"#0f2d5a",fontWeight:600,fontSize:13,cursor:"pointer"}}>✏️ {tx.leave_review}</button>
       </div>
       {show&&(
         <div style={{background:"#f8faff",borderRadius:14,padding:20,marginBottom:20,border:"1px solid #e0e8f8"}}>
-          <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:600,color:"#333",display:"block",marginBottom:5}}>{tx.your_name}</label><input value={name} onChange={e=>setName(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1.5px solid #ddd",fontSize:14,boxSizing:"border-box"}}/></div>
-          <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:600,color:"#333",display:"block",marginBottom:5}}>{tx.your_rating}</label>
+          <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:600,display:"block",marginBottom:5}}>{tx.your_name}</label><input value={name} onChange={e=>setName(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1.5px solid #ddd",fontSize:14,boxSizing:"border-box"}}/></div>
+          <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:600,display:"block",marginBottom:5}}>{tx.your_rating}</label>
             <div style={{display:"flex",gap:4}}>{[1,2,3,4,5].map(i=><span key={i} onMouseEnter={()=>setHover(i)} onMouseLeave={()=>setHover(0)} onClick={()=>setRating(i)} style={{fontSize:28,cursor:"pointer",color:i<=(hover||rating)?"#f59e0b":"#ddd"}}>★</span>)}</div>
           </div>
-          <div style={{marginBottom:14}}><label style={{fontSize:13,fontWeight:600,color:"#333",display:"block",marginBottom:5}}>{tx.your_comment}</label><textarea value={comment} onChange={e=>setComment(e.target.value)} rows={3} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1.5px solid #ddd",fontSize:14,resize:"vertical",boxSizing:"border-box",fontFamily:"inherit"}}/></div>
+          <div style={{marginBottom:14}}><label style={{fontSize:13,fontWeight:600,display:"block",marginBottom:5}}>{tx.your_comment}</label><textarea value={comment} onChange={e=>setComment(e.target.value)} rows={3} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1.5px solid #ddd",fontSize:14,resize:"vertical",boxSizing:"border-box",fontFamily:"inherit"}}/></div>
           <button onClick={submit} style={{padding:"9px 24px",borderRadius:10,border:"none",background:"#0f2d5a",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>{tx.submit_review}</button>
         </div>
       )}
@@ -225,8 +228,8 @@ function ReviewSection({p,lang,tx,onAddReview}) {
           {[...p.reviews].reverse().map((r,i)=>(
             <div key={i} style={{background:"#fff",borderRadius:12,padding:"14px 16px",border:"1px solid #eee"}}>
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                <div style={{width:36,height:36,borderRadius:"50%",background:"#0f2d5a",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:15}}>{r.author[0].toUpperCase()}</div>
-                <div><div style={{fontWeight:700,fontSize:14,color:"#111"}}>{r.author}</div><div style={{display:"flex",alignItems:"center",gap:6}}><Stars n={r.rating} size={13}/><span style={{fontSize:11,color:"#aaa"}}>{r.date}</span></div></div>
+                <div style={{width:36,height:36,borderRadius:"50%",background:"#0f2d5a",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{r.author[0].toUpperCase()}</div>
+                <div><div style={{fontWeight:700,fontSize:14}}>{r.author}</div><div style={{display:"flex",alignItems:"center",gap:6}}><Stars n={r.rating} size={13}/><span style={{fontSize:11,color:"#aaa"}}>{r.date}</span></div></div>
               </div>
               <p style={{margin:0,fontSize:14,color:"#444",lineHeight:1.6}}>{lang==="zh"?r.text_zh:r.text_en}</p>
             </div>
@@ -240,7 +243,7 @@ function ReviewSection({p,lang,tx,onAddReview}) {
 function DetailPage({p,lang,tx,onBook,onBack,onAddReview}) {
   const name=lang==="zh"?p.name_zh:p.name_en;
   const desc=lang==="zh"?p.desc_zh:p.desc_en;
-  const amenities=lang==="zh"?p.amenities_zh:p.amenities_en;
+  const ams=lang==="zh"?p.amenities_zh:p.amenities_en;
   const proj=PROJECTS[p.project];
   return (
     <div style={{maxWidth:960,margin:"0 auto",padding:"24px 20px 48px"}}>
@@ -250,17 +253,15 @@ function DetailPage({p,lang,tx,onBook,onBack,onAddReview}) {
         <span style={{background:"#f3f4f6",color:"#555",borderRadius:20,padding:"3px 12px",fontSize:12,fontWeight:600}}>{p.type}</span>
         <span style={{background:p.status==="available"?"#dcfce7":"#fee2e2",color:p.status==="available"?"#16a34a":"#dc2626",borderRadius:20,padding:"3px 12px",fontSize:12,fontWeight:700}}>{p.status==="available"?tx.available:tx.booked}</span>
       </div>
-      <h2 style={{margin:"4px 0 4px",fontSize:24,fontWeight:800,color:"#111"}}>{name}</h2>
+      <h2 style={{margin:"4px 0",fontSize:24,fontWeight:800,color:"#111"}}>{name}</h2>
       <p style={{margin:"0 0 20px",color:"#888",fontSize:13}}>🔑 {p.unit} · 👥 {tx.max_guests} {p.maxGuests}</p>
       <Carousel images={p.images}/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:28}}>
         <div>
           <p style={{fontSize:15,lineHeight:1.8,color:"#444",margin:"0 0 20px"}}>{desc}</p>
           <h4 style={{margin:"0 0 10px",fontSize:15,fontWeight:700}}>{tx.amenities}</h4>
-          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:20}}>
-            {(amenities||[]).map(a=><span key={a} style={{background:"#f3f4f6",borderRadius:20,padding:"5px 13px",fontSize:13,color:"#444"}}>{AMENITY_ICONS[a]||"✓"} {a}</span>)}
-          </div>
-          <ReviewSection p={p} lang={lang} tx={tx} onAddReview={onAddReview}/>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:20}}>{(ams||[]).map(a=><span key={a} style={{background:"#f3f4f6",borderRadius:20,padding:"5px 13px",fontSize:13,color:"#444"}}>{AMI[a]||"✓"} {a}</span>)}</div>
+          <ReviewSection p={p} lang={lang} tx={tx} onAdd={onAddReview}/>
         </div>
         <div style={{alignSelf:"start",position:"sticky",top:120}}>
           <div style={{background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:16,padding:22,boxShadow:"0 4px 20px rgba(0,0,0,0.07)"}}>
@@ -275,17 +276,17 @@ function DetailPage({p,lang,tx,onBook,onBack,onAddReview}) {
 }
 
 function BookingPage({p,lang,tx,onBack}) {
-  const [checkin,setCheckin]=useState("");const [checkout,setCheckout]=useState("");
-  const [name,setName]=useState("");const [phone,setPhone]=useState("");
-  const [step,setStep]=useState(1);const [err,setErr]=useState("");
+  const [ci,setCi]=useState(""); const [co,setCo]=useState("");
+  const [name,setName]=useState(""); const [phone,setPhone]=useState("");
+  const [step,setStep]=useState(1); const [err,setErr]=useState("");
   const pname=lang==="zh"?p.name_zh:p.name_en;
-  const nights=nightsBetween(checkin,checkout);
+  const n=nights(ci,co);
   const submit=()=>{
     if(!name.trim()||!phone.trim()){setErr(tx.fill_all);return;}
-    if(!checkin||!checkout||nights<=0){setErr(tx.date_err);return;}
+    if(!ci||!co||n<=0){setErr(tx.date_err);return;}
     setErr("");setStep(2);
   };
-  const waMsg=encodeURIComponent(`Hi T-Rex Homestay! I'd like to book:\n🏠 Unit: ${pname} (${p.unit})\n📅 Check-in: ${checkin}\n📅 Check-out: ${checkout} (${nights} nights)\n👤 Name: ${name}\n📞 Phone: ${phone}\n💰 Est. Total: RM ${nights*p.price}\n\nPlease confirm. Thank you!`);
+  const waMsg=encodeURIComponent(`Hi T-Rex Homestay!\n🏠 Unit: ${pname} (${p.unit})\n📅 Check-in: ${ci}\n📅 Check-out: ${co} (${n} nights)\n👤 Name: ${name}\n📞 Phone: ${phone}\n💰 Est. Total: RM ${n*p.price}\n\nPlease confirm. Thank you!`);
   const inp={width:"100%",padding:"11px 13px",borderRadius:10,border:"1.5px solid #e0e0e0",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",outline:"none"};
   return (
     <div style={{maxWidth:580,margin:"0 auto",padding:"24px 20px 48px"}}>
@@ -295,12 +296,12 @@ function BookingPage({p,lang,tx,onBack}) {
           <h2 style={{margin:"0 0 4px",fontSize:22,fontWeight:800}}>{tx.booking_title}</h2>
           <p style={{margin:"0 0 22px",color:"#888",fontSize:13}}>🏠 {pname} · 🔑 {p.unit}</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-            <div><label style={{display:"block",fontSize:12,fontWeight:600,marginBottom:5,color:"#333"}}>{tx.checkin}</label><input type="date" value={checkin} onChange={e=>setCheckin(e.target.value)} style={inp} min={today()}/></div>
-            <div><label style={{display:"block",fontSize:12,fontWeight:600,marginBottom:5,color:"#333"}}>{tx.checkout}</label><input type="date" value={checkout} onChange={e=>setCheckout(e.target.value)} style={inp} min={checkin||today()}/></div>
+            <div><label style={{display:"block",fontSize:12,fontWeight:600,marginBottom:5,color:"#333"}}>{tx.checkin}</label><input type="date" value={ci} onChange={e=>setCi(e.target.value)} style={inp} min={today()}/></div>
+            <div><label style={{display:"block",fontSize:12,fontWeight:600,marginBottom:5,color:"#333"}}>{tx.checkout}</label><input type="date" value={co} onChange={e=>setCo(e.target.value)} style={inp} min={ci||today()}/></div>
           </div>
           <div style={{marginBottom:12}}><label style={{display:"block",fontSize:12,fontWeight:600,marginBottom:5,color:"#333"}}>{tx.guestname}</label><input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Zhang Wei" style={inp}/></div>
           <div style={{marginBottom:18}}><label style={{display:"block",fontSize:12,fontWeight:600,marginBottom:5,color:"#333"}}>{tx.phone}</label><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+60 1X-XXXXXXX" style={inp}/></div>
-          {nights>0&&<div style={{background:"#eff6ff",borderRadius:12,padding:"12px 16px",marginBottom:14,border:"1px solid #bfdbfe"}}><p style={{margin:"0 0 3px",fontWeight:700,fontSize:13,color:"#1e40af"}}>{tx.summary}</p><p style={{margin:0,fontSize:13,color:"#444"}}>{nights} {tx.nights} × RM {p.price} = <strong>RM {nights*p.price}</strong></p></div>}
+          {n>0&&<div style={{background:"#eff6ff",borderRadius:12,padding:"12px 16px",marginBottom:14,border:"1px solid #bfdbfe"}}><p style={{margin:"0 0 3px",fontWeight:700,fontSize:13,color:"#1e40af"}}>{tx.summary}</p><p style={{margin:0,fontSize:13,color:"#444"}}>{n} {tx.nights} × RM {p.price} = <strong>RM {n*p.price}</strong></p></div>}
           {err&&<p style={{color:"#ef4444",fontSize:13,marginBottom:10}}>{err}</p>}
           <button onClick={submit} style={{width:"100%",padding:"13px 0",borderRadius:12,border:"none",background:"linear-gradient(135deg,#0f2d5a,#1a5aad)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>{tx.submit}</button>
         </>
@@ -311,22 +312,21 @@ function BookingPage({p,lang,tx,onBack}) {
           <p style={{margin:"0 0 24px",color:"#666",fontSize:14}}>{tx.contact_sub}</p>
           <div style={{background:"#f0fdf4",borderRadius:14,padding:"14px 18px",marginBottom:18,border:"1px solid #bbf7d0",textAlign:"left"}}>
             <p style={{margin:"0 0 6px",fontWeight:700,fontSize:13,color:"#15803d"}}>{tx.summary}</p>
-            {[`🏠 ${pname} (${p.unit})`,`📅 ${checkin} → ${checkout} (${nights} ${tx.nights})`,`👤 ${name} · ${phone}`,`💰 ${tx.total}: RM ${nights*p.price}`].map((l,i)=><p key={i} style={{margin:"2px 0",fontSize:13,color:"#444"}}>{l}</p>)}
+            {[`🏠 ${pname} (${p.unit})`,`📅 ${ci} → ${co} (${n} ${tx.nights})`,`👤 ${name} · ${phone}`,`💰 ${tx.total}: RM ${n*p.price}`].map((l,i)=><p key={i} style={{margin:"2px 0",fontSize:13,color:"#444"}}>{l}</p>)}
           </div>
           <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${waMsg}`} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"14px 0",borderRadius:12,background:"#25d366",color:"#fff",fontWeight:700,fontSize:16,textDecoration:"none",marginBottom:18}}>
-            <span style={{fontSize:20}}>💬</span> {tx.wa_btn}
+            💬 {tx.wa_btn}
           </a>
           <div style={{background:"#fff",border:"1px solid #eee",borderRadius:16,padding:20,marginBottom:14}}>
-            <p style={{margin:"0 0 4px",fontWeight:700,fontSize:14,color:"#111"}}>📱 WhatsApp QR</p>
-            <p style={{margin:"0 0 12px",fontSize:12,color:"#888"}}>trexhomeandhouse</p>
-            <img src={WA_QR_URL} alt="WhatsApp QR" style={{width:160,height:160,borderRadius:10,border:"1px solid #eee",objectFit:"cover",display:"block",margin:"0 auto"}}/>
-            <p style={{margin:"10px 0 0",fontSize:13,color:"#555"}}>+{WHATSAPP_NUMBER}</p>
+            <p style={{margin:"0 0 4px",fontWeight:700,fontSize:14}}>📱 WhatsApp QR</p>
+            <img src={WA_QR} alt="WA QR" style={{width:160,height:160,borderRadius:10,objectFit:"cover",display:"block",margin:"8px auto"}}/>
+            <p style={{margin:"8px 0 0",fontSize:13,color:"#555"}}>+{WHATSAPP_NUMBER}</p>
           </div>
           <div style={{background:"#fff",border:"1px solid #eee",borderRadius:16,padding:20}}>
-            <p style={{margin:"0 0 4px",fontWeight:700,fontSize:14,color:"#111"}}>🟢 {tx.wechat_title}</p>
-            <p style={{margin:"0 0 12px",fontSize:12,color:"#888"}}>{tx.scan_qr}</p>
-            <img src={WX_QR_URL} alt="WeChat QR" style={{width:160,height:160,borderRadius:10,border:"1px solid #eee",objectFit:"cover",display:"block",margin:"0 auto"}}/>
-            <p style={{margin:"10px 0 0",fontSize:13,color:"#555"}}>{tx.wechat_id_label}: <strong>{WECHAT_ID}</strong></p>
+            <p style={{margin:"0 0 4px",fontWeight:700,fontSize:14}}>🟢 {tx.wechat_title}</p>
+            <p style={{margin:"0 0 8px",fontSize:12,color:"#888"}}>{tx.scan_qr}</p>
+            <img src={WX_QR} alt="WX QR" style={{width:160,height:160,borderRadius:10,objectFit:"cover",display:"block",margin:"0 auto"}}/>
+            <p style={{margin:"8px 0 0",fontSize:13,color:"#555"}}>{tx.wechat_id_label}: <strong>{WECHAT_ID}</strong></p>
           </div>
         </div>
       )}
@@ -335,49 +335,46 @@ function BookingPage({p,lang,tx,onBack}) {
 }
 
 function AdminLogin({tx,onLogin}) {
-  const [pw,setPw]=useState("");const [err,setErr]=useState("");
-  const attempt=()=>pw===ADMIN_PW?onLogin():setErr(tx.wrong_pw);
+  const [pw,setPw]=useState(""); const [err,setErr]=useState("");
+  const go=()=>pw===ADMIN_PW?onLogin():setErr(tx.wrong_pw);
   return (
     <div style={{maxWidth:360,margin:"80px auto",padding:32,background:"#fff",borderRadius:20,boxShadow:"0 4px 32px rgba(0,0,0,0.1)",textAlign:"center"}}>
-      <img src={LOGO_URL} alt="logo" style={{height:60,width:60,objectFit:"contain",marginBottom:12,borderRadius:8}}/>
+      <img src={LOGO} style={{height:60,width:60,objectFit:"contain",marginBottom:12,borderRadius:8}}/>
       <h2 style={{margin:"0 0 6px",fontSize:20,fontWeight:800}}>{tx.login}</h2>
-      <p style={{margin:"0 0 24px",color:"#888",fontSize:13}}>T-Rex Admin</p>
-      <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&attempt()} placeholder={tx.password} style={{width:"100%",padding:"12px",borderRadius:10,border:"1.5px solid #e0e0e0",fontSize:14,boxSizing:"border-box",marginBottom:10}}/>
+      <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()} placeholder={tx.password} style={{width:"100%",padding:"12px",borderRadius:10,border:"1.5px solid #e0e0e0",fontSize:14,boxSizing:"border-box",marginBottom:10}}/>
       {err&&<p style={{color:"#ef4444",fontSize:13,marginBottom:8}}>{err}</p>}
-      <button onClick={attempt} style={{width:"100%",padding:"12px",borderRadius:10,border:"none",background:"#0f2d5a",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>{tx.login_btn}</button>
+      <button onClick={go} style={{width:"100%",padding:"12px",borderRadius:10,border:"none",background:"#0f2d5a",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>{tx.login_btn}</button>
     </div>
   );
 }
 
 function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
-  const [editId,setEditId]=useState(null);const [adding,setAdding]=useState(false);
+  const [editId,setEditId]=useState(null); const [adding,setAdding]=useState(false);
   const fileRef=useRef();
   const blank={id:genId(),project:"RF_PRINCESS",unit:"",type:"Studio",name_en:"",name_zh:"",desc_en:"",desc_zh:"",price:200,status:"available",maxGuests:2,cover:"",images:[],amenities_en:[],amenities_zh:[],reviews:[]};
   const [form,setForm]=useState({...blank,amenities_en_str:"",amenities_zh_str:""});
+  const [uploading,setUploading]=useState(false);
   const startEdit=p=>{setForm({...p,images:p.images||[],amenities_en:p.amenities_en||[],amenities_zh:p.amenities_zh||[],amenities_en_str:(p.amenities_en||[]).join(", "),amenities_zh_str:(p.amenities_zh||[]).join(", ")});setEditId(p.id);setAdding(false);};
   const startAdd=()=>{setForm({...blank,id:genId(),amenities_en_str:"",amenities_zh_str:""});setAdding(true);setEditId(null);};
   const cancel=()=>{setEditId(null);setAdding(false);};
-  const save=()=>{
-    const updated={...form,amenities_en:(form.amenities_en_str||"").split(",").map(s=>s.trim()).filter(Boolean),amenities_zh:(form.amenities_zh_str||"").split(",").map(s=>s.trim()).filter(Boolean),price:Number(form.price),maxGuests:Number(form.maxGuests)};
-    if(!updated.cover&&updated.images.length) updated.cover=updated.images[0];
-    if(adding) onUpdate([...properties,updated]);
-    else onUpdate(properties.map(p=>p.id===editId?updated:p));
+  const doSave=()=>{
+    const u={...form,amenities_en:(form.amenities_en_str||"").split(",").map(s=>s.trim()).filter(Boolean),amenities_zh:(form.amenities_zh_str||"").split(",").map(s=>s.trim()).filter(Boolean),price:Number(form.price),maxGuests:Number(form.maxGuests)};
+    if(!u.cover&&u.images.length) u.cover=u.images[0];
+    if(adding) onUpdate([...properties,u]);
+    else onUpdate(properties.map(p=>p.id===editId?u:p));
     cancel();
   };
-  const del=id=>{if(window.confirm("Delete this property?")) onUpdate(properties.filter(p=>p.id!==id));};
-  const [uploading, setUploading] = useState(false);
-  const handleImgUpload = async (e) => {
-    const files = Array.from(e.target.files);
+  const del=id=>{if(window.confirm("Delete?")) onUpdate(properties.filter(p=>p.id!==id));};
+  const handleImgUpload=async e=>{
+    const files=Array.from(e.target.files);
     setUploading(true);
-    for (const f of files) {
-      try {
-        const url = await uploadImage(f);
-        setForm(prev => ({ ...prev, images: [...(prev.images||[]), url], cover: prev.cover || url }));
-      } catch { alert("图片上传失败，请重试"); }
+    for(const f of files){
+      try{ const url=await uploadImage(f); setForm(prev=>({...prev,images:[...(prev.images||[]),url],cover:prev.cover||url})); }
+      catch{ alert("Upload failed, please retry"); }
     }
     setUploading(false);
   };
-  const removeImg = i => setForm(prev => { const imgs = (prev.images||[]).filter((_,j)=>j!==i); return {...prev, images:imgs, cover:imgs[0]||""}; });
+  const removeImg=i=>setForm(prev=>{const imgs=(prev.images||[]).filter((_,j)=>j!==i);return{...prev,images:imgs,cover:imgs[0]||""};});
   const inp={width:"100%",padding:"9px 11px",borderRadius:8,border:"1.5px solid #e0e0e0",fontSize:13,boxSizing:"border-box",fontFamily:"inherit"};
   const lbl={display:"block",fontSize:12,fontWeight:600,color:"#555",marginBottom:4};
   const grouped=Object.keys(PROJECTS).reduce((acc,k)=>{acc[k]=properties.filter(p=>p.project===k);return acc;},{});
@@ -390,7 +387,7 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               <div><label style={lbl}>{tx.prop_project}</label><select value={form.project} onChange={e=>setForm(f=>({...f,project:e.target.value}))} style={inp}>{Object.entries(PROJECTS).map(([k,v])=><option key={k} value={k}>{lang==="zh"?v.zh:v.en}</option>)}</select></div>
               <div><label style={lbl}>{tx.prop_unit}</label><input value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} style={inp} placeholder="e.g. A-12-03"/></div>
-              <div><label style={lbl}>{tx.prop_type}</label><select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={inp}>{["Studio","2 Bedrooms","3 Bedrooms"].map(t=><option key={t}>{t}</option>)}</select></div>
+              <div><label style={lbl}>{tx.prop_type}</label><select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={inp}>{["Studio","1 Bedroom","2 Bedrooms","3 Bedrooms"].map(t=><option key={t}>{t}</option>)}</select></div>
               <div><label style={lbl}>{tx.prop_status}</label><select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={inp}><option value="available">{tx.available}</option><option value="booked">{tx.booked}</option></select></div>
               <div><label style={lbl}>{tx.prop_price}</label><input type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} style={inp}/></div>
               <div><label style={lbl}>{tx.prop_maxguests}</label><input type="number" value={form.maxGuests} onChange={e=>setForm(f=>({...f,maxGuests:e.target.value}))} style={inp}/></div>
@@ -404,25 +401,14 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
             <div style={{marginTop:16}}>
               <label style={lbl}>🖼️ {tx.upload_imgs}</label>
               <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImgUpload} style={{display:"none"}}/>
-              <button onClick={()=>fileRef.current.click()} disabled={uploading}
-                style={{padding:"8px 18px",borderRadius:8,border:"1.5px dashed #0f2d5a",background:uploading?"#e0e7ff":"#f0f4ff",color:"#0f2d5a",fontWeight:600,fontSize:13,cursor:uploading?"wait":"pointer"}}>
+              <button onClick={()=>fileRef.current.click()} disabled={uploading} style={{padding:"8px 18px",borderRadius:8,border:"1.5px dashed #0f2d5a",background:uploading?"#e0e7ff":"#f0f4ff",color:"#0f2d5a",fontWeight:600,fontSize:13,cursor:uploading?"wait":"pointer"}}>
                 {uploading?"⏳ 上传中...":"+ 上传图片"}
               </button>
-              <span style={{fontSize:11,color:"#aaa",marginLeft:10}}>支持多张，自动上传到云端</span>
-              {form.images?.length>0&&(
-                <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:10}}>
-                  {form.images.map((img,i)=>(
-                    <div key={i} style={{position:"relative"}}>
-                      <img src={img} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:i===0?"2.5px solid #0f2d5a":"1px solid #ddd"}}/>
-                      {i===0&&<span style={{position:"absolute",bottom:2,left:2,background:"#0f2d5a",color:"#fff",fontSize:9,borderRadius:4,padding:"1px 4px"}}>封面</span>}
-                      <button onClick={()=>removeImg(i)} style={{position:"absolute",top:-6,right:-6,background:"#ef4444",color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:11,cursor:"pointer",lineHeight:1}}>×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <span style={{fontSize:11,color:"#aaa",marginLeft:10}}>支持多张，自动上传云端</span>
+              {form.images?.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:10}}>{form.images.map((img,i)=><div key={i} style={{position:"relative"}}><img src={img} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:i===0?"2.5px solid #0f2d5a":"1px solid #ddd"}}/>{i===0&&<span style={{position:"absolute",bottom:2,left:2,background:"#0f2d5a",color:"#fff",fontSize:9,borderRadius:4,padding:"1px 4px"}}>封面</span>}<button onClick={()=>removeImg(i)} style={{position:"absolute",top:-6,right:-6,background:"#ef4444",color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:11,cursor:"pointer",lineHeight:1}}>×</button></div>)}</div>}
             </div>
             <div style={{display:"flex",gap:10,marginTop:20}}>
-              <button onClick={save} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"#0f2d5a",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>{tx.save}</button>
+              <button onClick={doSave} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"#0f2d5a",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>{tx.save}</button>
               <button onClick={cancel} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid #ddd",background:"#fff",color:"#555",fontWeight:700,fontSize:14,cursor:"pointer"}}>{tx.cancel}</button>
             </div>
           </div>
@@ -443,13 +429,13 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
           </h3>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
             {props.map(p=>(
-              <div key={p.id} style={{background:"#fff",borderRadius:14,border:"1px solid #eee",overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
+              <div key={p.id} style={{background:"#fff",borderRadius:14,border:"1px solid #eee",overflow:"hidden"}}>
                 <div style={{position:"relative",height:130}}>
                   {p.cover?<img src={p.cover} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{width:"100%",height:"100%",background:"#f0f4f8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>🏠</div>}
                   <div style={{position:"absolute",top:8,right:8,background:p.status==="available"?"#16a34a":"#dc2626",color:"#fff",borderRadius:20,padding:"2px 9px",fontSize:10,fontWeight:700}}>{p.status==="available"?tx.available:tx.booked}</div>
                 </div>
                 <div style={{padding:"12px 14px"}}>
-                  <p style={{margin:"0 0 2px",fontWeight:700,fontSize:13,color:"#111"}}>{lang==="zh"?p.name_zh:p.name_en}</p>
+                  <p style={{margin:"0 0 2px",fontWeight:700,fontSize:13}}>{lang==="zh"?p.name_zh:p.name_en}</p>
                   <p style={{margin:"0 0 10px",fontSize:11,color:"#aaa"}}>🔑 {p.unit} · {p.type} · RM {p.price}/night</p>
                   <div style={{display:"flex",gap:8}}>
                     <button onClick={()=>startEdit(p)} style={{flex:1,padding:"7px 0",borderRadius:8,border:"1.5px solid #0f2d5a",background:"#fff",color:"#0f2d5a",fontWeight:600,fontSize:12,cursor:"pointer"}}>✏️ {tx.edit}</button>
@@ -471,42 +457,28 @@ export default function App() {
   const [filter,setFilter]=useState("All");
   const [page,setPage]=useState("home");
   const [selected,setSelected]=useState(null);
-  const [properties,setProperties]=useState(DEFAULT_PROPERTIES);
+  const [properties,setProperties]=useState(DEFAULT_PROPS);
   const [isAdmin,setIsAdmin]=useState(false);
   const [showLogin,setShowLogin]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
+  const [showDisclaimer,setShowDisclaimer]=useState(false);
   const tx=T[lang];
 
-  useEffect(()=>{
-    loadFromCloud().then(data=>{
-      if(data) setProperties(data);
-      setLoading(false);
-    });
-  },[]);
+  useEffect(()=>{ const d=load(); if(d) setProperties(d); setLoading(false); },[]);
 
-  const updateProperties=async p=>{
-    setProperties([...p]);
-    setSaving(true);
-    await saveToCloud(p);
-    setSaving(false);
-  };
+  const updateProperties=async p=>{ setProperties([...p]); setSaving(true); save(p); setSaving(false); };
 
-  const addReview=(propId,review)=>{
-    const updated=properties.map(p=>p.id===propId?{...p,reviews:[...(p.reviews||[]),review]}:p);
+  const addReview=(pid,review)=>{
+    const updated=properties.map(p=>p.id===pid?{...p,reviews:[...(p.reviews||[]),review]}:p);
     updateProperties(updated);
-    if(selected?.id===propId) setSelected(updated.find(p=>p.id===propId));
+    if(selected?.id===pid) setSelected(updated.find(p=>p.id===pid));
   };
 
   const filtered=properties.filter(p=>(project==="ALL"||p.project===project)&&(filter==="All"||p.type===filter));
   const nav=(pg,prop=null)=>{setPage(pg);if(prop)setSelected(prop);window.scrollTo(0,0);};
 
-  if(loading) return (
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f8fafc",fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
-      <img src={LOGO_URL} alt="logo" style={{height:80,width:80,objectFit:"contain",borderRadius:10}}/>
-      <p style={{color:"#888",fontSize:15}}>{tx.loading}</p>
-    </div>
-  );
+  if(loading) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:"#f8fafc"}}><img src={LOGO} style={{height:80,width:80,objectFit:"contain",borderRadius:10}}/><p style={{color:"#888"}}>{T[lang].loading}</p></div>;
 
   if(showLogin&&!isAdmin) return (
     <div style={{minHeight:"100vh",background:"#f8fafc",fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
@@ -532,9 +504,14 @@ export default function App() {
       {page==="booking"&&selected&&<BookingPage p={selected} lang={lang} tx={tx} onBack={()=>nav("detail",selected)}/>}
       {page==="admin"&&isAdmin&&<AdminPanel tx={tx} lang={lang} properties={properties} onUpdate={updateProperties} onLogout={()=>{setIsAdmin(false);setPage("home");}} saving={saving}/>}
       <footer style={{background:"#0a1628",color:"#556",textAlign:"center",padding:"22px 20px",fontSize:12}}>
-        <img src={LOGO_URL} alt="" style={{height:20,width:20,objectFit:"contain",verticalAlign:"middle",marginRight:6,borderRadius:3}}/>
+        <img src={LOGO} alt="" style={{height:20,width:20,objectFit:"contain",verticalAlign:"middle",marginRight:6,borderRadius:3}}/>
         <span style={{color:"#7eb3e8",fontWeight:700}}>{tx.brand}</span> &nbsp;·&nbsp; {tx.footer}
+        &nbsp;·&nbsp;
+        <button onClick={()=>setShowDisclaimer(true)} style={{background:"none",border:"none",color:"#7eb3e8",fontSize:12,cursor:"pointer",textDecoration:"underline",padding:0}}>
+          {lang==="zh"?"免责声明":"Disclaimer"}
+        </button>
       </footer>
+      {showDisclaimer&&<DisclaimerModal lang={lang} onClose={()=>setShowDisclaimer(false)}/>}
     </div>
   );
 }
