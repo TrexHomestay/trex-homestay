@@ -32,9 +32,16 @@ const genId = () => Date.now() + Math.random();
 const today = () => new Date().toISOString().split("T")[0];
 const nightsBetween = (a,b) => a&&b ? Math.max(0,Math.round((new Date(b)-new Date(a))/86400000)) : 0;
 
-let _store = { properties: JSON.parse(JSON.stringify(DEFAULT_PROPERTIES)) };
-const getProps = () => _store.properties;
-const setProps = p => { _store.properties = p; };
+const STORAGE_KEY = "trex_properties";
+const getProps = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_PROPERTIES));
+  } catch { return JSON.parse(JSON.stringify(DEFAULT_PROPERTIES)); }
+};
+const setProps = p => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {}
+};
 
 // ── Stars ──────────────────────────────────────────────────
 const Stars = ({ n, size=16 }) => (
