@@ -59,7 +59,9 @@ const uploadImage = async (file) => {
   return d.secure_url;
 };
 
-const CLOUDINARY_CLOUD = "dij7dlx83"; = "60137700776";
+const CLOUDINARY_CLOUD = "dij7dlx83";
+const CLOUDINARY_PRESET = "trex_upload";
+const WHATSAPP_NUMBER = "60137700776";
 const WECHAT_ID = "TrexHomestay";
 const WA_QR = "https://i.postimg.cc/LsJwKH9B/Whats-App-QR.jpg";
 const WX_QR = "https://i.postimg.cc/N0KSqgs1/Wechat-QR.jpg";
