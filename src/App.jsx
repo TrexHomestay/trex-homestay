@@ -48,7 +48,7 @@ const loadFromCloud = async () => {
   }
 };
 
-const CLOUDINARY_CLOUD = "dij7dlx83";
+// ── Cloudinary ─────────────────────────────────────────────
 const CLOUDINARY_PRESET = "trex_upload";
 const uploadImage = async (file) => {
   const fd = new FormData();
@@ -59,7 +59,7 @@ const uploadImage = async (file) => {
   return d.secure_url;
 };
 
-const WHATSAPP_NUMBER = "60137700776";
+const CLOUDINARY_CLOUD = "dij7dlx83"; = "60137700776";
 const WECHAT_ID = "TrexHomestay";
 const WA_QR = "https://i.postimg.cc/LsJwKH9B/Whats-App-QR.jpg";
 const WX_QR = "https://i.postimg.cc/N0KSqgs1/Wechat-QR.jpg";
@@ -520,10 +520,35 @@ export default function App() {
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [showDisclaimer,setShowDisclaimer]=useState(false);
+  const [syncing,setSyncing]=useState(false);
+  const handleSyncToCF=async()=>{
+    setSyncing(true);
+    const ok=await syncToCF(properties);
+    setSyncing(false);
+    alert(ok?`✅ 同步成功！${properties.length} 个房源已同步到全球CDN，中国客户可以访问了。`:"❌ 同步失败，请重试。");
+  };
   const tx=T[lang];
 
-  useEffect(()=>{ loadFromCloud().then(d=>{ if(d) setProperties(d); setLoading(false); }); },[]);
-  const updateProperties=async p=>{ setProperties([...p]); setSaving(true); await saveToCloud(p); setSaving(false); };
+  useEffect(()=>{
+    // 先尝试 Firebase，失败则用 Cloudflare KV
+    loadFromCloud().then(async d=>{
+      if(d && d.length > 0){
+        setProperties(d);
+      } else {
+        const cf = await loadFromCF();
+        if(cf) setProperties(cf);
+      }
+      setLoading(false);
+    });
+  },[]);
+  const updateProperties=async p=>{
+    setProperties([...p]);
+    setSaving(true);
+    await saveToCloud(p);
+    // 同步到 Cloudflare KV
+    await syncToCF(p);
+    setSaving(false);
+  };
   const addReview=(pid,review)=>{
     const updated=properties.map(p=>p.id===pid?{...p,reviews:[...(p.reviews||[]),review]}:p);
     updateProperties(updated);
@@ -550,7 +575,18 @@ export default function App() {
       </>}
       {page==="detail"&&selected&&<DetailPage p={properties.find(p=>p.id===selected.id)||selected} lang={lang} tx={tx} onBook={p=>nav("booking",p)} onBack={()=>nav("home")} onAddReview={addReview}/>}
       {page==="booking"&&selected&&<BookingPage p={selected} lang={lang} tx={tx} onBack={()=>nav("detail",selected)}/>}
-      {page==="admin"&&isAdmin&&<AdminPanel tx={tx} lang={lang} properties={properties} onUpdate={updateProperties} onLogout={()=>{setIsAdmin(false);setPage("home");}} saving={saving}/>}
+      {page==="admin"&&isAdmin&&<>
+        <div style={{background:"#fff3cd",border:"1px solid #ffc107",borderRadius:10,padding:"12px 20px",margin:"16px 20px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+          <div>
+            <strong>🌍 同步到全球CDN</strong>
+            <p style={{fontSize:12,color:"#666",margin:"2px 0 0"}}>点击同步后，中国客户也能看到最新房源和图片</p>
+          </div>
+          <button onClick={handleSyncToCF} disabled={syncing} style={{padding:"10px 24px",borderRadius:10,border:"none",background:syncing?"#ccc":"#f59e0b",color:"#fff",fontWeight:700,fontSize:14,cursor:syncing?"wait":"pointer",whiteSpace:"nowrap"}}>
+            {syncing?"⏳ 同步中...":"🔄 立即同步到中国"}
+          </button>
+        </div>
+        <AdminPanel tx={tx} lang={lang} properties={properties} onUpdate={updateProperties} onLogout={()=>{setIsAdmin(false);setPage("home");}} saving={saving}/>
+      </>}
       <footer style={{background:"#0a1628",color:"#556",textAlign:"center",padding:"22px 20px",fontSize:12}}>
         <img src={LOGO} alt="" style={{height:20,width:20,objectFit:"contain",verticalAlign:"middle",marginRight:6,borderRadius:3}}/>
         <span style={{color:"#7eb3e8",fontWeight:700}}>{tx.brand}</span> &nbsp;·&nbsp; {tx.footer}
