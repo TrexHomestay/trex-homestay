@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
+// ── Firebase ───────────────────────────────────────────────
 const firebaseApp = initializeApp({
   apiKey: "AIzaSyA-ZKs5svNygZga3rNoLJ7k6q9JpdXjH3I",
   authDomain: "trex-homestay.firebaseapp.com",
@@ -12,43 +13,41 @@ const firebaseApp = initializeApp({
 });
 const db = getFirestore(firebaseApp);
 const saveToCloud = async (properties) => {
-  try {
-    await setDoc(doc(db,"data","properties"), { list: properties, updatedAt: Date.now() });
-    console.log("✅ Saved", properties.length, "properties to Firebase");
-    return true;
-  } catch(e) {
-    console.error("❌ Save error:",e);
-    alert("保存失败：" + e.message);
-    return false;
-  }
+  try { await setDoc(doc(db,"data","properties"), { list: properties }); }
+  catch(e) { console.error("Firebase save error:",e); }
 };
-
-// 迁移旧数据：price → priceWeekday + priceWeekend
-const migrateProperty = (p) => {
-  if (p.priceWeekday === undefined) {
-    const base = p.price || 200;
-    return { ...p, priceWeekday: base, priceWeekend: Math.round(base * 1.2) };
-  }
-  return p;
-};
-
 const loadFromCloud = async () => {
   try {
     const s = await getDoc(doc(db,"data","properties"));
-    if (s.exists()) {
-      const list = s.data().list;
-      console.log("✅ Loaded", list.length, "properties from Firebase");
-      return list.map(migrateProperty);
-    }
-    console.log("⚠️ No data in Firebase, using defaults");
-    return null;
-  } catch(e) {
-    console.error("❌ Load error:",e);
-    return null;
-  }
+    return s.exists() ? s.data().list : null;
+  } catch(e) { console.error("Firebase load error:",e); return null; }
 };
 
-// ── Cloudinary ─────────────────────────────────────────────
+// ── Cloudflare Worker (中国备用) ───────────────────────────
+const CF_WORKER = "https://trex-api.yoz0502.workers.dev";
+const CF_SECRET = "trex2025api";
+const loadFromCF = async () => {
+  try {
+    const res = await fetch(`${CF_WORKER}/properties`);
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) return data;
+  } catch(e) { console.log("CF load failed:", e); }
+  return null;
+};
+const syncToCF = async (properties) => {
+  try {
+    const res = await fetch(`${CF_WORKER}/properties`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret: CF_SECRET, properties })
+    });
+    const data = await res.json();
+    return data.success;
+  } catch(e) { console.error("CF sync failed:", e); return false; }
+};
+
+// ── Cloudinary 图片上传 ────────────────────────────────────
+const CLOUDINARY_CLOUD = "dij7dlx83";
 const CLOUDINARY_PRESET = "trex_upload";
 const uploadImage = async (file) => {
   const fd = new FormData();
@@ -59,8 +58,7 @@ const uploadImage = async (file) => {
   return d.secure_url;
 };
 
-const CLOUDINARY_CLOUD = "dij7dlx83";
-const CLOUDINARY_PRESET = "trex_upload";
+// ── 联系方式 ───────────────────────────────────────────────
 const WHATSAPP_NUMBER = "60137700776";
 const WECHAT_ID = "TrexHomestay";
 const WA_QR = "https://i.postimg.cc/LsJwKH9B/Whats-App-QR.jpg";
@@ -72,15 +70,13 @@ const PROJECTS = {
   RF_PRINCESS: { en:"R&F Princess Cove", zh:"富力公主湾", icon:"🌊" },
   RF_SEINE:    { en:"R&F Seine Region",  zh:"富力新天地",  icon:"🏙️" },
 };
-
 const AMI = { "WiFi":"📶","Air Con":"❄️","Smart TV":"📺","Kitchen":"🍳","Full Kitchen":"🍳","Mini Kitchen":"🍳","Washer":"🫧","Balcony":"🌅","Pool Access":"🏊","Parking":"🅿️","Sea View":"🌊","City View":"🏙️","空调":"❄️","智能电视":"📺","厨房":"🍳","完整厨房":"🍳","迷你厨房":"🍳","洗衣机":"🫧","阳台":"🌅","泳池":"🏊","停车位":"🅿️","海景":"🌊","城景":"🏙️" };
-
 const ROOM_TYPES = ["Studio","1 Bedroom","2 Bedrooms","3 Bedrooms","Dual Key"];
 
 const DEFAULT_PROPS = [
-  { id:1, project:"RF_PRINCESS", unit:"A-12-03", type:"Studio", name_en:"Cozy Studio · A-12-03", name_zh:"温馨开间 · A-12-03", desc_en:"Modern studio with stunning sea views at R&F Princess Cove.", desc_zh:"富力公主湾现代开间，享有壮丽海景。", priceWeekday:180, priceWeekend:220, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80", images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Kitchen","Sea View"], amenities_zh:["WiFi","空调","智能电视","厨房","海景"], reviews:[] },
-  { id:2, project:"RF_PRINCESS", unit:"B-08-11", type:"2 Bedrooms", name_en:"Seaview Suite · B-08-11", name_zh:"海景套房 · B-08-11", desc_en:"Spacious 2-bedroom with panoramic sea views.", desc_zh:"宽敞两卧室，全景柔佛海峡。", priceWeekday:320, priceWeekend:380, status:"available", maxGuests:5, cover:"https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80", images:["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","Sea View","Balcony"], amenities_zh:["WiFi","空调","完整厨房","海景","阳台"], reviews:[] },
-  { id:3, project:"RF_SEINE", unit:"S-05-08", type:"Studio", name_en:"Urban Studio · S-05-08", name_zh:"都市开间 · S-05-08", desc_en:"Chic studio in R&F Seine Region.", desc_zh:"富力新天地时尚开间。", priceWeekday:160, priceWeekend:200, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80", images:["https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Mini Kitchen"], amenities_zh:["WiFi","空调","智能电视","迷你厨房"], reviews:[] },
+  { id:1, project:"RF_PRINCESS", unit:"A-12-03", type:"Studio", name_en:"Cozy Studio · A-12-03", name_zh:"温馨开间 · A-12-03", desc_en:"Modern studio with stunning sea views.", desc_zh:"富力公主湾现代开间，享有壮丽海景。", priceWeekday:180, priceWeekend:220, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80", images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Kitchen","Sea View"], amenities_zh:["WiFi","空调","智能电视","厨房","海景"], reviews:[] },
+  { id:2, project:"RF_SEINE", unit:"S-05-08", type:"Studio", name_en:"Urban Studio · S-05-08", name_zh:"都市开间 · S-05-08", desc_en:"Chic studio in R&F Seine Region.", desc_zh:"富力新天地时尚开间。", priceWeekday:160, priceWeekend:200, status:"available", maxGuests:2, cover:"https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80", images:["https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80"], amenities_en:["WiFi","Air Con","Smart TV","Mini Kitchen"], amenities_zh:["WiFi","空调","智能电视","迷你厨房"], reviews:[] },
+  { id:3, project:"RF_SEINE", unit:"S-12-01", type:"3 Bedrooms", name_en:"Family Suite · S-12-01", name_zh:"家庭套间 · S-12-01", desc_en:"Spacious 3-bedroom family suite.", desc_zh:"宽敞三卧室家庭套间。", priceWeekday:420, priceWeekend:500, status:"available", maxGuests:8, cover:"https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80", images:["https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"], amenities_en:["WiFi","Air Con","Full Kitchen","Balcony","Parking"], amenities_zh:["WiFi","空调","完整厨房","阳台","停车位"], reviews:[] },
 ];
 
 const T = {
@@ -91,38 +87,36 @@ const T = {
 const genId = () => Date.now() + Math.random();
 const today = () => new Date().toISOString().split("T")[0];
 const isWeekend = (dateStr) => { const d = new Date(dateStr).getDay(); return d===0||d===5||d===6; };
-const calcTotal = (ci, co, pwd, pwe) => {
-  if (!ci||!co) return {total:0,weekdayNights:0,weekendNights:0};
-  const days = Math.round((new Date(co)-new Date(ci))/86400000);
-  if (days<=0) return {total:0,weekdayNights:0,weekendNights:0};
+const calcTotal = (ci,co,pwd,pwe) => {
+  if(!ci||!co) return {total:0,weekdayNights:0,weekendNights:0};
+  const days=Math.round((new Date(co)-new Date(ci))/86400000);
+  if(days<=0) return {total:0,weekdayNights:0,weekendNights:0};
   let total=0,weekendNights=0,weekdayNights=0;
-  for (let i=0;i<days;i++) {
+  for(let i=0;i<days;i++){
     const d=new Date(ci); d.setDate(d.getDate()+i);
-    const ds=d.toISOString().split("T")[0];
-    if(isWeekend(ds)){total+=Number(pwe);weekendNights++;}
+    if(isWeekend(d.toISOString().split("T")[0])){total+=Number(pwe);weekendNights++;}
     else{total+=Number(pwd);weekdayNights++;}
   }
   return {total,weekdayNights,weekendNights};
 };
-
 const Stars = ({n,size=16}) => <span style={{fontSize:size}}>{[1,2,3,4,5].map(i=><span key={i} style={{color:i<=n?"#f59e0b":"#ddd"}}>★</span>)}</span>;
 
 function DisclaimerModal({lang,onClose}) {
   const zh=lang==="zh";
   const sections=zh?[
-    ["订单成立条件","客户通过本网站提交的任何预订请求，仅为意向表达。只有当我们的工作人员通过 WhatsApp、微信或其他正式通讯渠道明确确认后，订单方告成立。"],
-    ["信息准确性","我们尽力确保房源描述和照片与实际相符，但可能存在轻微视觉差异。"],
+    ["订单成立条件","客户通过本网站提交的任何预订请求，仅为意向表达。只有当工作人员通过WhatsApp或微信明确确认后，订单方告成立。"],
+    ["信息准确性","我们尽力确保房源描述和照片与实际相符，但可能存在轻微差异。"],
     ["责任限制","对于因不可抗力导致的预订延迟或无法入住，我方在法律允许范围内不承担赔偿责任。"],
-    ["第三方链接","本网站包含的第三方服务链接，其可用性和隐私政策不在我方控制范围内。"],
+    ["第三方链接","本网站包含的第三方服务链接，其可用性不在我方控制范围内。"],
     ["知识产权","网站上所有内容未经书面许可，不得复制或用于商业用途。"],
-    ["更新与变更","我们保留随时修改本免责声明的权利，恕不另行通知。"],
+    ["更新与变更","我们保留随时修改本免责声明的权利。"],
   ]:[
-    ["Booking Confirmation","Any booking request is only an expression of interest confirmed only once our staff explicitly responds via WhatsApp, WeChat, or another official channel."],
-    ["Accuracy of Information","We strive to ensure accuracy though slight differences may arise due to lighting or furniture adjustments."],
-    ["Limitation of Liability","We shall not be held liable for failures caused by force majeure or third-party service interruptions."],
-    ["Third-Party Links","Linked external platforms' availability and privacy practices are beyond our control."],
-    ["Intellectual Property","All content may not be copied or used commercially without written permission."],
-    ["Changes","We reserve the right to modify this disclaimer at any time without prior notice."],
+    ["Booking Confirmation","Any booking request is only an expression of interest, confirmed only once our staff responds via WhatsApp or WeChat."],
+    ["Accuracy","We strive to ensure accuracy though slight differences may arise."],
+    ["Limitation of Liability","We shall not be held liable for failures caused by force majeure."],
+    ["Third-Party Links","Linked platforms' availability and privacy practices are beyond our control."],
+    ["Intellectual Property","All content may not be copied or used commercially without permission."],
+    ["Changes","We reserve the right to modify this disclaimer at any time."],
   ];
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
@@ -132,7 +126,7 @@ function DisclaimerModal({lang,onClose}) {
           <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",width:32,height:32,borderRadius:"50%",fontSize:18,cursor:"pointer"}}>×</button>
         </div>
         <div style={{padding:"24px 28px"}}>
-          <p style={{fontSize:14,lineHeight:1.8,color:"#444",marginTop:0}}>{zh?"本网站所展示的所有房源信息仅供展示与参考之用，不构成任何即时预订确认或合同承诺。":"All property listings are for informational purposes only and do not constitute a real-time booking confirmation."}</p>
+          <p style={{fontSize:14,lineHeight:1.8,color:"#444",marginTop:0}}>{zh?"本网站所展示的所有房源信息仅供参考，不构成即时预订确认。":"All property listings are for informational purposes only and do not constitute a real-time booking confirmation."}</p>
           {sections.map(([t,c])=><div key={t} style={{marginBottom:16}}><h4 style={{margin:"0 0 6px",fontSize:14,fontWeight:700,color:"#0f2d5a"}}>{t}</h4><p style={{margin:0,fontSize:13,lineHeight:1.8,color:"#555"}}>{c}</p></div>)}
           <p style={{fontSize:13,color:"#888",marginTop:20,borderTop:"1px solid #eee",paddingTop:16}}>{zh?<>如有疑问，请通过 WhatsApp <strong>+6013-7700776</strong> 或微信联系我们。</>:<>Questions? Contact us via WhatsApp <strong>+6013-7700776</strong> or WeChat.</>}</p>
         </div>
@@ -309,8 +303,8 @@ function DetailPage({p,lang,tx,onBook,onBack,onAddReview}) {
         </div>
         <div style={{alignSelf:"start",position:"sticky",top:120}}>
           <div style={{background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:16,padding:22,boxShadow:"0 4px 20px rgba(0,0,0,0.07)"}}>
-            <div style={{marginBottom:6}}><span style={{fontSize:13,color:"#666"}}>{tx.weekday}: </span><span style={{fontSize:22,fontWeight:800,color:"#0f2d5a"}}>RM {p.priceWeekday}</span><span style={{fontSize:13,color:"#aaa"}}> {tx.per_night}</span></div>
-            <div style={{marginBottom:12}}><span style={{fontSize:13,color:"#666"}}>{tx.weekend}: </span><span style={{fontSize:22,fontWeight:800,color:"#c2410c"}}>RM {p.priceWeekend}</span><span style={{fontSize:13,color:"#aaa"}}> {tx.per_night}</span></div>
+            <div style={{marginBottom:6}}><span style={{fontSize:13,color:"#666"}}>{tx.weekday}: </span><span style={{fontSize:22,fontWeight:800,color:"#0f2d5a"}}>RM {p.priceWeekday}</span></div>
+            <div style={{marginBottom:12}}><span style={{fontSize:13,color:"#666"}}>{tx.weekend}: </span><span style={{fontSize:22,fontWeight:800,color:"#c2410c"}}>RM {p.priceWeekend}</span></div>
             <div style={{background:"#f8faff",borderRadius:10,padding:"8px 12px",marginBottom:14,fontSize:12,color:"#666"}}>📅 {lang==="zh"?"周末 = 周五、周六、周日晚":"Weekend = Fri, Sat, Sun nights"}</div>
             {p.reviews?.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14}}><Stars n={Math.round(p.reviews.reduce((s,r)=>s+r.rating,0)/p.reviews.length)} size={15}/><span style={{fontSize:13,color:"#666"}}>{(p.reviews.reduce((s,r)=>s+r.rating,0)/p.reviews.length).toFixed(1)} ({p.reviews.length})</span></div>}
             <button onClick={()=>onBook(p)} disabled={p.status!=="available"} style={{width:"100%",padding:"13px 0",borderRadius:12,border:"none",background:p.status==="available"?"linear-gradient(135deg,#0f2d5a,#1a5aad)":"#ddd",color:"#fff",fontWeight:700,fontSize:15,cursor:p.status==="available"?"pointer":"not-allowed"}}>{tx.book_now}</button>
@@ -333,7 +327,7 @@ function BookingPage({p,lang,tx,onBack}) {
     if(!ci||!co||totalNights<=0){setErr(tx.date_err);return;}
     setErr("");setStep(2);
   };
-  const waMsg=encodeURIComponent(`Hi T-Rex Homestay!\n🏠 Unit: ${pname} (${p.unit})\n📅 Check-in: ${ci}\n📅 Check-out: ${co}\n🌙 ${weekdayNights} weekday night(s) × RM${p.priceWeekday} + ${weekendNights} weekend night(s) × RM${p.priceWeekend}\n👤 Name: ${name}\n📞 Phone: ${phone}\n💰 Est. Total: RM ${total}\n\nPlease confirm. Thank you!`);
+  const waMsg=encodeURIComponent(`Hi T-Rex Homestay!\n🏠 Unit: ${pname} (${p.unit})\n📅 Check-in: ${ci}\n📅 Check-out: ${co}\n🌙 ${weekdayNights} weekday × RM${p.priceWeekday} + ${weekendNights} weekend × RM${p.priceWeekend}\n👤 Name: ${name}\n📞 Phone: ${phone}\n💰 Est. Total: RM ${total}\n\nPlease confirm. Thank you!`);
   const inp={width:"100%",padding:"11px 13px",borderRadius:10,border:"1.5px solid #e0e0e0",fontSize:14,boxSizing:"border-box",fontFamily:"inherit",outline:"none"};
   return (
     <div style={{maxWidth:580,margin:"0 auto",padding:"24px 20px 48px"}}>
@@ -343,9 +337,7 @@ function BookingPage({p,lang,tx,onBack}) {
           <h2 style={{margin:"0 0 4px",fontSize:22,fontWeight:800}}>{tx.booking_title}</h2>
           <p style={{margin:"0 0 16px",color:"#888",fontSize:13}}>🏠 {pname} · 🔑 {p.unit}</p>
           <div style={{background:"#f8faff",borderRadius:10,padding:"8px 14px",marginBottom:16,fontSize:12,color:"#555",border:"1px solid #e0e8f8"}}>
-            📅 {lang==="zh"
-              ? `周末价（RM ${p.priceWeekend}）= 周五、周六、周日晚  |  平日价（RM ${p.priceWeekday}）= 其余晚`
-              : `Weekend (RM ${p.priceWeekend}) = Fri/Sat/Sun  |  Weekday (RM ${p.priceWeekday}) = other nights`}
+            📅 {lang==="zh"?`周末价（RM ${p.priceWeekend}）= 周五、周六、周日晚  |  平日价（RM ${p.priceWeekday}）= 其余`:`Weekend (RM ${p.priceWeekend}) = Fri/Sat/Sun  |  Weekday (RM ${p.priceWeekday}) = other nights`}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
             <div><label style={{display:"block",fontSize:12,fontWeight:600,marginBottom:5,color:"#333"}}>{tx.checkin}</label><input type="date" value={ci} onChange={e=>setCi(e.target.value)} style={inp} min={today()}/></div>
@@ -445,7 +437,7 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
             <h3 style={{margin:"0 0 20px",fontSize:18,fontWeight:800}}>{adding?tx.add_property:tx.edit}</h3>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               <div><label style={lbl}>{tx.prop_project}</label><select value={form.project} onChange={e=>setForm(f=>({...f,project:e.target.value}))} style={inp}>{Object.entries(PROJECTS).map(([k,v])=><option key={k} value={k}>{lang==="zh"?v.zh:v.en}</option>)}</select></div>
-              <div><label style={lbl}>{tx.prop_unit}</label><input value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} style={inp} placeholder="e.g. A-12-03"/></div>
+              <div><label style={lbl}>{tx.prop_unit}</label><input value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} style={inp} placeholder="e.g. Block B1-1 LV20"/></div>
               <div><label style={lbl}>{tx.prop_type}</label><select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={inp}>{ROOM_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
               <div><label style={lbl}>{tx.prop_status}</label><select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={inp}><option value="available">{tx.available}</option><option value="booked">{tx.booked}</option></select></div>
               <div><label style={lbl}>{tx.prop_price_wd} (Mon–Thu)</label><input type="number" value={form.priceWeekday} onChange={e=>setForm(f=>({...f,priceWeekday:e.target.value}))} style={inp}/></div>
@@ -462,7 +454,7 @@ function AdminPanel({tx,lang,properties,onUpdate,onLogout,saving}) {
               <label style={lbl}>🖼️ {tx.upload_imgs}</label>
               <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImgUpload} style={{display:"none"}}/>
               <button onClick={()=>fileRef.current.click()} disabled={uploading} style={{padding:"8px 18px",borderRadius:8,border:"1.5px dashed #0f2d5a",background:uploading?"#e0e7ff":"#f0f4ff",color:"#0f2d5a",fontWeight:600,fontSize:13,cursor:uploading?"wait":"pointer"}}>{uploading?"⏳ 上传中...":"+ 上传图片"}</button>
-              <span style={{fontSize:11,color:"#aaa",marginLeft:10}}>支持多张，自动上传云端</span>
+              <span style={{fontSize:11,color:"#aaa",marginLeft:10}}>自动上传云端</span>
               {form.images?.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:10}}>{form.images.map((img,i)=><div key={i} style={{position:"relative"}}><img src={img} alt="" style={{width:72,height:72,objectFit:"cover",borderRadius:8,border:i===0?"2.5px solid #0f2d5a":"1px solid #ddd"}}/>{i===0&&<span style={{position:"absolute",bottom:2,left:2,background:"#0f2d5a",color:"#fff",fontSize:9,borderRadius:4,padding:"1px 4px"}}>封面</span>}<button onClick={()=>removeImg(i)} style={{position:"absolute",top:-6,right:-6,background:"#ef4444",color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:11,cursor:"pointer",lineHeight:1}}>×</button></div>)}</div>}
             </div>
             <div style={{display:"flex",gap:10,marginTop:20}}>
@@ -521,36 +513,36 @@ export default function App() {
   const [showLogin,setShowLogin]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
-  const [showDisclaimer,setShowDisclaimer]=useState(false);
   const [syncing,setSyncing]=useState(false);
-  const handleSyncToCF=async()=>{
-    setSyncing(true);
-    const ok=await syncToCF(properties);
-    setSyncing(false);
-    alert(ok?`✅ 同步成功！${properties.length} 个房源已同步到全球CDN，中国客户可以访问了。`:"❌ 同步失败，请重试。");
-  };
+  const [showDisclaimer,setShowDisclaimer]=useState(false);
   const tx=T[lang];
 
   useEffect(()=>{
-    // 先尝试 Firebase，失败则用 Cloudflare KV
     loadFromCloud().then(async d=>{
-      if(d && d.length > 0){
-        setProperties(d);
-      } else {
-        const cf = await loadFromCF();
-        if(cf) setProperties(cf);
+      if(d&&d.length>0){ setProperties(d); }
+      else {
+        const cf=await loadFromCF();
+        if(cf&&cf.length>0) setProperties(cf);
       }
       setLoading(false);
     });
   },[]);
+
   const updateProperties=async p=>{
     setProperties([...p]);
     setSaving(true);
     await saveToCloud(p);
-    // 同步到 Cloudflare KV
     await syncToCF(p);
     setSaving(false);
   };
+
+  const handleSyncToCF=async()=>{
+    setSyncing(true);
+    const ok=await syncToCF(properties);
+    setSyncing(false);
+    alert(ok?`✅ 同步成功！${properties.length} 个房源已同步，中国客户现在可以看到全部房源了。`:"❌ 同步失败，请重试。");
+  };
+
   const addReview=(pid,review)=>{
     const updated=properties.map(p=>p.id===pid?{...p,reviews:[...(p.reviews||[]),review]}:p);
     updateProperties(updated);
@@ -578,10 +570,10 @@ export default function App() {
       {page==="detail"&&selected&&<DetailPage p={properties.find(p=>p.id===selected.id)||selected} lang={lang} tx={tx} onBook={p=>nav("booking",p)} onBack={()=>nav("home")} onAddReview={addReview}/>}
       {page==="booking"&&selected&&<BookingPage p={selected} lang={lang} tx={tx} onBack={()=>nav("detail",selected)}/>}
       {page==="admin"&&isAdmin&&<>
-        <div style={{background:"#fff3cd",border:"1px solid #ffc107",borderRadius:10,padding:"12px 20px",margin:"16px 20px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+        <div style={{background:"#fff3cd",border:"1px solid #ffc107",borderRadius:10,padding:"12px 20px",margin:"16px 20px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10,maxWidth:1100,marginLeft:"auto",marginRight:"auto"}}>
           <div>
-            <strong>🌍 同步到全球CDN</strong>
-            <p style={{fontSize:12,color:"#666",margin:"2px 0 0"}}>点击同步后，中国客户也能看到最新房源和图片</p>
+            <strong>🌍 同步到全球CDN（中国可访问）</strong>
+            <p style={{fontSize:12,color:"#666",margin:"2px 0 0"}}>点击后中国客户也能看到最新的全部房源</p>
           </div>
           <button onClick={handleSyncToCF} disabled={syncing} style={{padding:"10px 24px",borderRadius:10,border:"none",background:syncing?"#ccc":"#f59e0b",color:"#fff",fontWeight:700,fontSize:14,cursor:syncing?"wait":"pointer",whiteSpace:"nowrap"}}>
             {syncing?"⏳ 同步中...":"🔄 立即同步到中国"}
