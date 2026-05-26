@@ -24,7 +24,7 @@ import { useState, useEffect, useRef } from "react";
 // };
 
 // ── Cloudflare Worker（主数据源）──────────────────────────
-const CF_WORKER = "https://trex-api.yoz0502.workers.dev";
+const CF_WORKER = "https://api.trex-home.com";
 const CF_SECRET = "trex2025api";
 const loadFromCF = async () => {
   try {
