@@ -1,29 +1,29 @@
 import { useState, useEffect, useRef } from "react";
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
-// ── Firebase ───────────────────────────────────────────────
-const firebaseApp = initializeApp({
-  apiKey: "AIzaSyA-ZKs5svNygZga3rNoLJ7k6q9JpdXjH3I",
-  authDomain: "trex-homestay.firebaseapp.com",
-  projectId: "trex-homestay",
-  storageBucket: "trex-homestay.firebasestorage.app",
-  messagingSenderId: "162512186134",
-  appId: "1:162512186134:web:ca52ac4a2f8db49da43e37"
-});
-const db = getFirestore(firebaseApp);
-const saveToCloud = async (properties) => {
-  try { await setDoc(doc(db,"data","properties"), { list: properties }); }
-  catch(e) { console.error("Firebase save error:",e); }
-};
-const loadFromCloud = async () => {
-  try {
-    const s = await getDoc(doc(db,"data","properties"));
-    return s.exists() ? s.data().list : null;
-  } catch(e) { console.error("Firebase load error:",e); return null; }
-};
+// ── Firebase（已暂停使用，代码保留，随时可恢复）────────────
+// import { initializeApp } from "firebase/app";
+// import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+// const firebaseApp = initializeApp({
+//   apiKey: "AIzaSyA-ZKs5svNygZga3rNoLJ7k6q9JpdXjH3I",
+//   authDomain: "trex-homestay.firebaseapp.com",
+//   projectId: "trex-homestay",
+//   storageBucket: "trex-homestay.firebasestorage.app",
+//   messagingSenderId: "162512186134",
+//   appId: "1:162512186134:web:ca52ac4a2f8db49da43e37"
+// });
+// const db = getFirestore(firebaseApp);
+// const saveToCloud = async (properties) => {
+//   try { await setDoc(doc(db,"data","properties"), { list: properties }); }
+//   catch(e) { console.error("Firebase save error:",e); }
+// };
+// const loadFromCloud = async () => {
+//   try {
+//     const s = await getDoc(doc(db,"data","properties"));
+//     return s.exists() ? s.data().list : null;
+//   } catch(e) { console.error("Firebase load error:",e); return null; }
+// };
 
-// ── Cloudflare Worker (中国备用) ───────────────────────────
+// ── Cloudflare Worker（主数据源）──────────────────────────
 const CF_WORKER = "https://trex-api.yoz0502.workers.dev";
 const CF_SECRET = "trex2025api";
 const loadFromCF = async () => {
@@ -200,7 +200,10 @@ function PropertyCard({p,lang,tx,onClick}) {
       onMouseEnter={e=>{if(avail){e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(0,0,0,0.13)";}}}
       onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.07)";}}>
       <div style={{position:"relative",height:200,overflow:"hidden",background:"#f0f0f0"}}>
-        <img src={p.cover} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+        {p.cover
+          ? <img src={p.cover} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+          : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:48}}>🏠</div>
+        }
         <div style={{position:"absolute",top:10,left:10,background:avail?"#16a34a":"#dc2626",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700}}>{avail?tx.available:tx.booked}</div>
         {proj&&<div style={{position:"absolute",top:10,right:10,background:"rgba(0,0,0,0.55)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:600}}>{proj.icon} {lang==="zh"?proj.zh:proj.en}</div>}
       </div>
@@ -226,6 +229,7 @@ function Carousel({images}) {
   const [idx,setIdx]=useState(0);
   useEffect(()=>setIdx(0),[images]);
   const imgs=images||[];
+  if(!imgs.length) return <div style={{height:360,background:"#f0f0f0",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:64,marginBottom:24}}>🏠</div>;
   return (
     <div style={{position:"relative",borderRadius:16,overflow:"hidden",background:"#000",marginBottom:24}}>
       <img src={imgs[idx]} alt="" style={{width:"100%",height:360,objectFit:"cover",display:"block"}}/>
@@ -513,34 +517,25 @@ export default function App() {
   const [showLogin,setShowLogin]=useState(false);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
-  const [syncing,setSyncing]=useState(false);
   const [showDisclaimer,setShowDisclaimer]=useState(false);
   const tx=T[lang];
 
+  // ── 启动时从 Cloudflare KV 加载数据 ──────────────────────
   useEffect(()=>{
-    loadFromCloud().then(async d=>{
-      if(d&&d.length>0){ setProperties(d); }
-      else {
-        const cf=await loadFromCF();
-        if(cf&&cf.length>0) setProperties(cf);
-      }
+    loadFromCF().then(d=>{
+      if(d&&d.length>0) setProperties(d);
+      // 如需恢复 Firebase，在此处加回 loadFromCloud() 逻辑
       setLoading(false);
     });
   },[]);
 
+  // ── 保存：只写入 Cloudflare KV ───────────────────────────
   const updateProperties=async p=>{
     setProperties([...p]);
     setSaving(true);
-    await saveToCloud(p);
     await syncToCF(p);
+    // 如需恢复 Firebase，在此处加回 saveToCloud(p)
     setSaving(false);
-  };
-
-  const handleSyncToCF=async()=>{
-    setSyncing(true);
-    const ok=await syncToCF(properties);
-    setSyncing(false);
-    alert(ok?`✅ 同步成功！${properties.length} 个房源已同步，中国客户现在可以看到全部房源了。`:"❌ 同步失败，请重试。");
   };
 
   const addReview=(pid,review)=>{
@@ -548,6 +543,7 @@ export default function App() {
     updateProperties(updated);
     if(selected?.id===pid) setSelected(updated.find(p=>p.id===pid));
   };
+
   const filtered=properties.filter(p=>(project==="ALL"||p.project===project)&&(filter==="All"||p.type===filter));
   const nav=(pg,prop=null)=>{setPage(pg);if(prop)setSelected(prop);window.scrollTo(0,0);};
 
@@ -569,18 +565,7 @@ export default function App() {
       </>}
       {page==="detail"&&selected&&<DetailPage p={properties.find(p=>p.id===selected.id)||selected} lang={lang} tx={tx} onBook={p=>nav("booking",p)} onBack={()=>nav("home")} onAddReview={addReview}/>}
       {page==="booking"&&selected&&<BookingPage p={selected} lang={lang} tx={tx} onBack={()=>nav("detail",selected)}/>}
-      {page==="admin"&&isAdmin&&<>
-        <div style={{background:"#fff3cd",border:"1px solid #ffc107",borderRadius:10,padding:"12px 20px",margin:"16px 20px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10,maxWidth:1100,marginLeft:"auto",marginRight:"auto"}}>
-          <div>
-            <strong>🌍 同步到全球CDN（中国可访问）</strong>
-            <p style={{fontSize:12,color:"#666",margin:"2px 0 0"}}>点击后中国客户也能看到最新的全部房源</p>
-          </div>
-          <button onClick={handleSyncToCF} disabled={syncing} style={{padding:"10px 24px",borderRadius:10,border:"none",background:syncing?"#ccc":"#f59e0b",color:"#fff",fontWeight:700,fontSize:14,cursor:syncing?"wait":"pointer",whiteSpace:"nowrap"}}>
-            {syncing?"⏳ 同步中...":"🔄 立即同步到中国"}
-          </button>
-        </div>
-        <AdminPanel tx={tx} lang={lang} properties={properties} onUpdate={updateProperties} onLogout={()=>{setIsAdmin(false);setPage("home");}} saving={saving}/>
-      </>}
+      {page==="admin"&&isAdmin&&<AdminPanel tx={tx} lang={lang} properties={properties} onUpdate={updateProperties} onLogout={()=>{setIsAdmin(false);setPage("home");}} saving={saving}/>}
       <footer style={{background:"#0a1628",color:"#556",textAlign:"center",padding:"22px 20px",fontSize:12}}>
         <img src={LOGO} alt="" style={{height:20,width:20,objectFit:"contain",verticalAlign:"middle",marginRight:6,borderRadius:3}}/>
         <span style={{color:"#7eb3e8",fontWeight:700}}>{tx.brand}</span> &nbsp;·&nbsp; {tx.footer}
